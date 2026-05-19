@@ -1,0 +1,9 @@
+# 舵机控制节点参数
+servo1_gpio: 18              # 舵机1 GPIO (BCM编号)，默认 GPIO18 (物理引脚12)
+servo2_gpio: 19              # 舵机2 GPIO (BCM编号)，默认 GPIO19 (物理引脚35)
+servo1_min_pw_us: 500        # 舵机1 0°对应脉宽 (us)
+servo1_max_pw_us: 2500       # 舵机1 180°对应脉宽 (us)
+servo2_min_pw_us: 500        # 舵机2 0°对应脉宽 (us)
+servo2_max_pw_us: 2500       # 舵机2 180°对应脉宽 (us)
+servo1_default_angle: 0.0    # 舵机1默认角度（闭合状态）
+servo2_default_angle: 0.0    # 舵机2默认角度（闭合状态）

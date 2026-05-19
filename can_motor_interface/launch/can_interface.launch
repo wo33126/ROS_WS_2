@@ -1,0 +1,24 @@
+<launch>
+  <arg name="can_device" default="can0"/>
+
+  <node pkg="can_motor_interface" type="can_interface_node" name="can_interface_node" output="screen">
+    <param name="can_device" value="$(arg can_device)"/>
+
+    <!-- 与 STM32 的自定义协议参数 -->
+    <param name="tx_can_id" value="513"/> <!-- 0x201: ROS->STM32 -->
+    <param name="rx_can_id" value="385"/> <!-- 0x181: STM32->ROS -->
+    <param name="rx_can_id_filter_enable" value="true"/>
+    <param name="use_extended_frame" value="true"/>
+    <param name="payload_little_endian" value="true"/>
+    <param name="checksum_use_sum8" value="true"/>
+
+    <!-- 帧结构: [cmd(0x01), idx(0~3/0xFF), rpm(int32), checksum] -->
+    <param name="speed_cmd_code" value="1"/>      <!-- 0x01 -->
+    <param name="status_cmd_code" value="129"/>   <!-- 0x81 -->
+    <param name="broadcast_index" value="255"/>   <!-- 0xFF -->
+    <param name="motor_count" value="4"/>
+    <param name="max_rpm" value="3000.0"/>
+
+    <param name="heartbeat_timeout_sec" value="1.0"/>
+  </node>
+</launch>

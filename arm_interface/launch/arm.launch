@@ -1,0 +1,14 @@
+<launch>
+  <arg name="params_file" default="$(find robot_bringup)/config/arm_params.yaml"/>
+  <arg name="can_device" default="can0"/>
+
+  <rosparam file="$(arg params_file)" command="load"/>
+
+  <node pkg="arm_interface" type="arm_controller_node" name="arm_controller_node" output="screen">
+    <param name="can_device" value="$(arg can_device)"/>
+    <param name="tx_can_base_id" value="512"/>  <!-- 0x200 -->
+    <param name="rx_can_base_id" value="768"/>  <!-- 0x300 -->
+    <param name="set_joint_cmd_code" value="16"/>
+    <param name="position_scale_counts" value="1000.0"/>
+  </node>
+</launch>

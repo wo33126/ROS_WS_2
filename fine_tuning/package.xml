@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>fine_tuning</name>
+  <version>0.0.1</version>
+  <description>Endpoint fine-tuning node: after path tracking completes, uses
+    VL53L1X distance sensor to perform positional micro-adjustments via
+    step-based PID control.</description>
+
+  <maintainer email="fire@todo.todo">fire</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+
+  <export/>
+</package>

@@ -1,0 +1,96 @@
+# ==============================================================================
+#  完整导航参数配置 — robot_navigation/config/navigation_params.yaml
+# ==============================================================================
+#  本文件聚合所有导航相关子系统的参数，由 complete_navigation.launch 统一加载。
+#  各子系统也可使用自己独立的 YAML 文件覆盖。
+# ==============================================================================
+
+# ── 机器人物理参数 ──────────────────────────────────────────────
+robot:
+  wheel_radius: 0.05            # 轮半径 (m)
+  wheel_base: 0.18              # 轮心到底盘中心距离 (m)
+
+  max_linear_vel: 1.0           # 最大线速度 (m/s)
+  max_angular_vel: 2.0          # 最大角速度 (rad/s)
+  max_linear_accel: 1.0         # 最大线加速度 (m/s^2)
+  max_angular_accel: 2.0        # 最大角加速度 (rad/s^2)
+  max_rpm: 3000.0               # 电机最大 RPM
+
+  odom_publish_hz: 50.0         # 里程计发布频率
+  cmd_timeout_sec: 0.5          # 指令超时
+  publish_tf: true              # 是否发布 TF
+
+# ── 路径跟踪参数 ──────────────────────────────────────────────────
+path_tracker:
+  control_rate_hz: 30.0
+  kp_linear: 0.5
+  kp_angular: 1.5
+  max_linear_vel: 1.0
+  max_angular_vel: 2.0
+  position_tolerance: 0.05
+  heading_tolerance: 0.08
+  use_turn_then_move: false
+  arrival_hold_time: 0.5
+
+# ── 终点微调参数 (VL53L1X) ────────────────────────────────────────
+fine_tuning:
+  target_distance_mm: 200.0
+  tolerance_mm: 10.0
+  move_axis: 1.0                # 1=X轴, 2=Y轴
+  move_direction: 1             # +1: 使距离减小, -1: 使距离增大
+  step_velocity: 0.05
+  step_duration: 0.2
+  settle_time: 0.3
+  control_rate_hz: 10.0
+  max_fine_tuning_time: 30.0
+  kp_distance: 0.0005
+
+# ── 舵机控制参数 ──────────────────────────────────────────────────
+servo:
+  servo1_gpio: 18               # BCM 编号
+  servo2_gpio: 19
+  servo1_min_pw_us: 500
+  servo1_max_pw_us: 2500
+  servo2_min_pw_us: 500
+  servo2_max_pw_us: 2500
+  servo1_default_angle: 0.0
+  servo2_default_angle: 0.0
+
+# ── 机械臂+夹爪参数 ────────────────────────────────────────────────
+arm_and_gripper:
+  can_device: "can1"
+  arm_can_id: 0x205
+  position_cmd_code: 0x10
+  arm_angle_scale: 2.78
+  default_arm_angle: 90.0
+  default_servo1_open_angle: 90.0
+  default_servo2_open_angle: 90.0
+  default_reset_arm: true
+  post_servo1_delay_s: 0.5
+  post_servo2_delay_s: 1.0
+  arm_move_timeout_s: 3.0
+
+# ── 固定路线执行参数 ──────────────────────────────────────────────
+fixed_route:
+  publish_rate_hz: 20.0
+  start_delay_sec: 1.0
+  loop_route: false
+  auto_start: true
+  stop_between_segments: false
+  publish_zero_when_paused: true
+
+# ── 路径管理参数 ──────────────────────────────────────────────────
+path_manager:
+  publish_rate_hz: 10.0
+
+# ── 开关控制（可通过 launch args 覆盖） ───────────────────────────
+switches:
+  enable_arm: true
+  enable_teleop: false
+  enable_twist_test: false
+  enable_fixed_route: false
+  enable_path_manager: true
+  enable_path_tracker: true
+  enable_fine_tuning: true
+  enable_servo_controller: true
+  enable_arm_and_gripper: true

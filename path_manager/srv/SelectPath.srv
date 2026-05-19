@@ -1,0 +1,5 @@
+# 选择要执行的路径
+string path_name   # 路径名称（对应 YAML 中 paths[].name）
+---
+bool success       # 是否选择成功
+string message     # 额外信息

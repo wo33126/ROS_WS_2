@@ -1,0 +1,5 @@
+# 语音播报服务
+string text        # 要播报的文本
+---
+bool success       # 是否播报成功
+string message     # 状态信息

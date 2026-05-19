@@ -1,0 +1,12 @@
+<launch>
+  <arg name="paths_file" default="$(find robot_bringup)/config/paths.yaml"/>
+  <arg name="publish_rate_hz" default="10.0"/>
+
+  <!-- 将 paths.yaml 预加载到参数服务器 -->
+  <rosparam file="$(arg paths_file)" command="load" ns="path_manager"/>
+
+  <node pkg="path_manager" type="path_manager_node" name="path_manager_node" output="screen">
+    <param name="yaml_file_path" value="$(arg paths_file)"/>
+    <param name="publish_rate_hz" value="$(arg publish_rate_hz)"/>
+  </node>
+</launch>

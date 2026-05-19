@@ -1,0 +1,41 @@
+publish_rate_hz: 20.0
+start_delay_sec: 1.0
+loop_route: false
+auto_start: true
+stop_between_segments: false
+publish_zero_when_paused: true
+
+route:
+  - name: forward_1
+    vx: 0.30
+    vy: 0.00
+    omega: 0.00
+    duration: 2.0
+    target_distance: 0.50
+
+  - name: stop_hold
+    vx: 0.00
+    vy: 0.00
+    omega: 0.00
+    duration: 1.0
+
+  - name: move_right
+    vx: 0.00
+    vy: 0.25
+    omega: 0.00
+    duration: 2.0
+    target_distance: 0.40
+
+  - name: rotate_ccw
+    vx: 0.00
+    vy: 0.00
+    omega: 0.60
+    duration: 2.0
+    target_heading: 1.57
+
+  - name: backward_1
+    vx: -0.30
+    vy: 0.00
+    omega: 0.00
+    duration: 2.0
+    target_distance: 0.50

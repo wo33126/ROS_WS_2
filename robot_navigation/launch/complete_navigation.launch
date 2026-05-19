@@ -1,0 +1,213 @@
+<?xml version="1.0"?>
+<!--
+  ==============================================================================
+   完整导航启动文件 — robot_navigation/launch/complete_navigation.launch
+  ==============================================================================
+
+   启动顺序（按依赖关系从底层到顶层）：
+     1. can_motor_interface     — 底盘 CAN 通信（硬件层）
+     2. motion_planner          — 运动规划 + 里程计 + 可选固定路线
+     3. arm_interface           — 机械臂 CAN 接口（可选）
+     4. path_manager            — 路径管理与发布
+     5. path_tracker            — 路径跟踪控制
+     6. fine_tuning             — 终点距离微调
+     7. servo_controller        — 舵机 PWM 控制
+     8. arm_and_gripper         — 药品摆放动作序列
+
+   使用方式：
+     roslaunch robot_navigation complete_navigation.launch
+
+   常用 args：
+     enable_fixed_route:=true   — 启用固定路线模式
+     enable_teleop:=true        — 启用键盘遥控
+     enable_arm:=false          — 禁用机械臂
+  ==============================================================================
+-->
+<launch>
+  <!-- ======================== 顶层开关参数 ======================== -->
+  <arg name="enable_arm"           default="true"/>
+  <arg name="enable_teleop"        default="false"/>
+  <arg name="enable_twist_test"    default="false"/>
+  <arg name="enable_fixed_route"   default="false"/>
+  <arg name="enable_path_manager"  default="true"/>
+  <arg name="enable_path_tracker"  default="true"/>
+  <arg name="enable_fine_tuning"   default="true"/>
+  <arg name="enable_servo"         default="true"/>
+  <arg name="enable_arm_and_gripper" default="true"/>
+
+  <!-- ======================== 配置文件路径 ======================== -->
+  <arg name="navigation_params"  default="$(find robot_navigation)/config/navigation_params.yaml"/>
+  <arg name="robot_params"       default="$(find robot_bringup)/config/robot_params.yaml"/>
+  <arg name="arm_params"         default="$(find robot_bringup)/config/arm_params.yaml"/>
+  <arg name="paths_file"         default="$(find robot_bringup)/config/paths.yaml"/>
+  <arg name="fixed_route_file"   default="$(find robot_bringup)/config/fixed_route.yaml"/>
+  <arg name="path_tracker_params" default="$(find robot_bringup)/config/path_tracker.yaml"/>
+  <arg name="fine_tuning_config" default="$(find fine_tuning)/config/fine_tuning.yaml"/>
+  <arg name="servo_config"       default="$(find arm_and_gripper)/config/servo_params.yaml"/>
+  <arg name="arm_gripper_config" default="$(find arm_and_gripper)/config/arm_and_gripper.yaml"/>
+
+  <!-- ======================== 全局参数加载 ======================== -->
+  <!-- 加载机器人物理参数和导航聚合参数 -->
+  <rosparam file="$(arg robot_params)"      command="load"/>
+  <rosparam file="$(arg arm_params)"        command="load"/>
+  <rosparam file="$(arg navigation_params)" command="load"/>
+
+  <!-- ============================================================ -->
+  <!--  第1层：硬件通信层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 1.1 底盘 CAN 接口 — 与 STM32 通信，发布/订阅电机指令 -->
+  <node pkg="can_motor_interface" type="can_interface_node"
+        name="can_interface_node" output="screen" required="true">
+    <param name="can_device" value="can0"/>
+    <param name="tx_can_id" value="513"/>
+    <param name="rx_can_id" value="385"/>
+    <param name="rx_can_id_filter_enable" value="true"/>
+    <param name="use_extended_frame" value="true"/>
+    <param name="payload_little_endian" value="true"/>
+    <param name="checksum_use_sum8" value="true"/>
+    <param name="speed_cmd_code" value="1"/>
+    <param name="status_cmd_code" value="129"/>
+    <param name="broadcast_index" value="255"/>
+    <param name="motor_count" value="4"/>
+    <param name="max_rpm" value="3000.0"/>
+    <param name="heartbeat_timeout_sec" value="1.0"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  第2层：运动规划层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 2.1 cmd_vel 多路复用器 — 合并多个 cmd_vel 源 -->
+  <node pkg="motion_planner" type="cmd_vel_mux_node"
+        name="cmd_vel_mux_node" output="screen" required="true">
+    <param name="publish_rate_hz" value="30.0"/>
+  </node>
+
+  <!-- 2.2 里程计节点 — 基于电机反馈计算里程计 -->
+  <node pkg="motion_planner" type="base_odometry_node"
+        name="base_odometry_node" output="screen" required="true">
+    <param name="odom_publish_hz" value="50.0"/>
+  </node>
+
+  <!-- 2.3 运动规划器 — Twist → 四轮速度分配 -->
+  <node pkg="motion_planner" type="planner_node"
+        name="planner_node" output="screen" required="true">
+    <param name="print_debug_log" value="true"/>
+  </node>
+
+  <!-- 2.4 [可选] Twist 测试节点 -->
+  <node if="$(arg enable_twist_test)"
+        pkg="motion_planner" type="twist_test_node"
+        name="twist_test_node" output="screen"/>
+
+  <!-- 2.5 [可选] 固定路线执行节点 -->
+  <node if="$(arg enable_fixed_route)"
+        pkg="motion_planner" type="fixed_route_runner_node"
+        name="fixed_route_runner_node" output="screen">
+    <rosparam command="load" file="$(arg fixed_route_file)"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  第3层：机械臂硬件层（可选）                                   -->
+  <!-- ============================================================ -->
+
+  <group if="$(arg enable_arm)">
+    <node pkg="arm_interface" type="arm_controller_node"
+          name="arm_controller_node" output="screen">
+      <param name="can_device" value="can0"/>
+      <param name="tx_can_base_id" value="512"/>
+      <param name="rx_can_base_id" value="768"/>
+      <param name="set_joint_cmd_code" value="16"/>
+      <param name="position_scale_counts" value="1000.0"/>
+    </node>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  第4层：路径管理层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 4.1 路径管理器 — 加载 YAML 路径，按需发布路径点序列 -->
+  <group if="$(arg enable_path_manager)">
+    <rosparam file="$(arg paths_file)" command="load" ns="path_manager"/>
+    <node pkg="path_manager" type="path_manager_node"
+          name="path_manager_node" output="screen" required="true">
+      <param name="yaml_file_path" value="$(arg paths_file)"/>
+      <param name="publish_rate_hz" value="10.0"/>
+    </node>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  第5层：路径跟踪层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 5.1 路径跟踪器 — 逐点跟踪路径，发布 cmd_vel -->
+  <group if="$(arg enable_path_tracker)">
+    <rosparam file="$(arg path_tracker_params)" command="load"
+              ns="path_tracker_node"/>
+    <node pkg="path_manager" type="path_tracker_node"
+          name="path_tracker_node" output="screen" required="true">
+      <param name="control_rate_hz" value="30.0"/>
+      <param name="kp_linear" value="0.5"/>
+      <param name="kp_angular" value="1.5"/>
+      <param name="max_linear_vel" value="1.0"/>
+      <param name="max_angular_vel" value="2.0"/>
+      <param name="position_tolerance" value="0.05"/>
+      <param name="heading_tolerance" value="0.08"/>
+      <param name="use_turn_then_move" value="false"/>
+      <param name="arrival_hold_time" value="0.5"/>
+    </node>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  第6层：终点微调层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 6.1 VL53L1X 微调节点 — 路径跟踪到终点后，用距离传感器微调位置 -->
+  <group if="$(arg enable_fine_tuning)">
+    <rosparam file="$(arg fine_tuning_config)" command="load"
+              ns="fine_tuning_node"/>
+    <node pkg="fine_tuning" type="fine_tuning_node"
+          name="fine_tuning_node" output="screen" required="true"/>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  第7层：舵机控制层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 7.1 舵机控制器 — 通过 pigpio 控制 PWM 舵机 -->
+  <group if="$(arg enable_servo)">
+    <rosparam file="$(arg servo_config)" command="load"
+              ns="servo_controller_node"/>
+    <node pkg="arm_and_gripper" type="servo_controller_node"
+          name="servo_controller_node" output="screen" required="true"/>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  第8层：药品摆放层（最顶层）                                   -->
+  <!-- ============================================================ -->
+
+  <!-- 8.1 药品摆放主控 — 协调机械臂+夹爪完成药品放置动作序列 -->
+  <group if="$(arg enable_arm_and_gripper)">
+    <rosparam file="$(arg arm_gripper_config)" command="load"
+              ns="arm_and_gripper_node"/>
+    <node pkg="arm_and_gripper" type="arm_and_gripper_node"
+          name="arm_and_gripper_node" output="screen" required="true"/>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  辅助节点                                                     -->
+  <!-- ============================================================ -->
+
+  <!-- [可选] 键盘遥控 -->
+  <group if="$(arg enable_teleop)">
+    <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py"
+          name="teleop_twist_keyboard" output="screen"/>
+  </group>
+
+  <!-- [待实现] 定位节点 — 用于提供全局定位信息（如 SLAM/AMCL/uwb）
+  <node pkg="positioning" type="positioning_node"
+        name="positioning_node" output="screen"/>
+  -->
+
+</launch>

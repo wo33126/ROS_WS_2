@@ -1,0 +1,26 @@
+<launch>
+  <!--
+    舵机控制节点 launch
+    前置条件：pigpiod 守护进程需运行（如未运行，见下方说明）
+    
+    方式1（推荐）：先手动启动 pigpiod
+      sudo pigpiod
+    
+    方式2：在 launch 中自动启动（取消下面 node 的注释）
+  -->
+
+  <arg name="config_file" default="$(find arm_and_gripper)/config/servo_params.yaml"/>
+
+  <!-- 可选：自动启动 pigpiod（需要 sudo 权限） -->
+  <!--
+  <node pkg="arm_and_gripper" type="pigpiod_start.sh" name="pigpiod_start"
+        output="screen" required="false"
+        launch-prefix="sudo -E"/>
+  -->
+
+  <rosparam file="$(arg config_file)" command="load" ns="servo_controller_node"/>
+
+  <node pkg="arm_and_gripper" type="servo_controller_node" name="servo_controller_node"
+        output="screen" required="true">
+  </node>
+</launch>

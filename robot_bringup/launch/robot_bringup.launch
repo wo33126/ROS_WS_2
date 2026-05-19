@@ -1,0 +1,67 @@
+<launch>
+  <arg name="enable_arm" default="true"/>
+  <arg name="enable_teleop" default="true"/>
+  <arg name="enable_twist_test" default="false"/>
+  <arg name="enable_fixed_route" default="false"/>
+  <arg name="enable_path_manager" default="false"/>
+  <arg name="enable_path_tracker" default="false"/>
+  <arg name="enable_fine_tuning" default="false"/>
+  <arg name="enable_arm_and_gripper" default="false"/>
+  <arg name="fixed_route_file" default="$(find robot_bringup)/config/fixed_route.yaml"/>
+  <arg name="paths_file" default="$(find robot_bringup)/config/paths.yaml"/>
+  <arg name="fine_tuning_config" default="$(find fine_tuning)/config/fine_tuning.yaml"/>
+  <arg name="arm_and_gripper_config" default="$(find arm_and_gripper)/config/arm_and_gripper.yaml"/>
+
+  <!-- 全局参数 -->
+  <rosparam file="$(find robot_bringup)/config/robot_params.yaml" command="load"/>
+  <rosparam file="$(find robot_bringup)/config/arm_params.yaml" command="load"/>
+
+  <!-- 底盘 CAN 接口 -->
+  <include file="$(find can_motor_interface)/launch/can_interface.launch"/>
+
+  <!-- 运动规划 -->
+  <include file="$(find motion_planner)/launch/planner.launch">
+    <arg name="params_file" value="$(find robot_bringup)/config/robot_params.yaml"/>
+    <arg name="enable_twist_test" value="$(arg enable_twist_test)"/>
+    <arg name="enable_fixed_route" value="$(arg enable_fixed_route)"/>
+    <arg name="fixed_route_file" value="$(arg fixed_route_file)"/>
+  </include>
+
+  <!-- 机械臂接口（可选） -->
+  <group if="$(arg enable_arm)">
+    <include file="$(find arm_interface)/launch/arm.launch">
+      <arg name="params_file" value="$(find robot_bringup)/config/arm_params.yaml"/>
+    </include>
+  </group>
+
+  <!-- 路径管理（可选） -->
+  <group if="$(arg enable_path_manager)">
+    <include file="$(find path_manager)/launch/path_manager.launch">
+      <arg name="paths_file" value="$(arg paths_file)"/>
+    </include>
+  </group>
+
+  <!-- 路径跟踪（可选，依赖 path_manager 和 odometry） -->
+  <group if="$(arg enable_path_tracker)">
+    <include file="$(find path_manager)/launch/path_tracker.launch"/>
+  </group>
+
+  <!-- 终点位置微调（可选，依赖 path_tracker 和 VL53L1X 传感器） -->
+  <group if="$(arg enable_fine_tuning)">
+    <include file="$(find fine_tuning)/launch/fine_tuning.launch">
+      <arg name="config_file" value="$(arg fine_tuning_config)"/>
+    </include>
+  </group>
+
+  <!-- 药品摆放（可选，依赖微调完成信号，机械臂/舵机硬件） -->
+  <group if="$(arg enable_arm_and_gripper)">
+    <include file="$(find arm_and_gripper)/launch/arm_and_gripper.launch">
+      <arg name="arm_config" value="$(arg arm_and_gripper_config)"/>
+    </include>
+  </group>
+
+  <!-- 键盘控制（可选） -->
+  <group if="$(arg enable_teleop)">
+    <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen"/>
+  </group>
+</launch>

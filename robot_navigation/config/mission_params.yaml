@@ -1,0 +1,68 @@
+# ==============================================================================
+#  任务控制参数 — robot_navigation/config/mission_params.yaml
+# ==============================================================================
+#  配置任务状态机、路径、圆圈坐标、微调参数等。
+
+# ── 任务状态机参数 ──────────────────────────────────────────────
+mission:
+  stage_timeout_sec: 30.0          # 单阶段超时（秒）
+  mission_timeout_sec: 180.0       # 全局任务超时（秒，3分钟）
+  state_machine_rate_hz: 10.0      # 状态机循环频率
+
+  # 路径名称（对应 path_manager 中的 paths.yaml）
+  path_nurse_station: "nurse_station"
+  path_bed1_circle: "bed1_circle"
+  path_bed3_circle: "bed3_circle"
+  path_home: "HOME"
+
+  # ── 圆圈参数（用于微调和回归检测） ──
+  circle_bed1_x: 1.5               # 1 床圆圈中心 X (m)
+  circle_bed1_y: 0.8               # 1 床圆圈中心 Y (m)
+  circle_bed1_radius: 0.3          # 1 床圆圈半径 (m)
+
+  circle_bed3_x: 1.5               # 3 床圆圈中心 X (m)
+  circle_bed3_y: -0.8              # 3 床圆圈中心 Y (m)
+  circle_bed3_radius: 0.3          # 3 床圆圈半径 (m)
+
+  # ── 起始区（矩形，顶点按序排列） ──
+  home_zone_vertices:
+    - {x: -0.3, y: -0.3}
+    - {x:  0.3, y: -0.3}
+    - {x:  0.3, y:  0.3}
+    - {x: -0.3, y:  0.3}
+
+  home_hold_sec: 5.0               # 回归稳定时间（秒）
+
+# ── 二维码/条形码检测参数 ──────────────────────────────────────
+barcode_qr:
+  qr_timeout_sec: 30.0             # QR 检测超时（秒）
+  barcode_timeout_sec: 30.0        # 条形码检测超时（秒）
+  image_queue_size: 10
+  display_topic: "/robot_display"
+
+# ── 药箱控制参数 ──────────────────────────────────────────────
+medicine_box:
+  can_device: "can1"
+  can_id: 0x206
+  servo_cmd_code: 0x20             # 舵机控制指令码
+  open_angle_deg: 90.0             # 打开角度
+  hold_duration_sec: 1.0           # 保持时间（等舵机到位）
+
+# ── 机械臂推出参数 ────────────────────────────────────────────
+arm_push:
+  push_distance_m: 0.05            # 推出距离 (m)
+  push_velocity: 0.03              # 推出速度 (m/s)
+  push_timeout_s: 5.0              # 动作超时
+  push_cmd_code: 0x11              # 线性移动指令码
+
+# ── 显示节点参数 ──────────────────────────────────────────────
+display:
+  can_enable: false                # 是否通过 CAN 发送到 STM32 液晶屏
+  can_device: "can1"
+  can_id: 0x300
+
+# ── 启动信号接收参数 ────────────────────────────────────────────
+start_signal:
+  can_device: "can0"
+  can_id: 0x180                    # STM32 → ROS 的 CAN ID
+  start_cmd_code: 0xF0             # 启动信号指令码

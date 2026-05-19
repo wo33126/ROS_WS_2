@@ -1,0 +1,19 @@
+# 药品摆放服务（手动触发）
+# 调用即执行完整动作序列：
+#   1. 机械臂旋转到 arm_angle 角度
+#   2. 舵机1张开到 servo1_open_angle
+#   3. 延时 0.5s
+#   4. 舵机2张开到 servo2_open_angle
+#   5. 延时 1.0s
+#   6. 可选：机械臂复位
+# 参数均可覆盖默认值（来自 yaml 配置）
+# ---
+# success: 是否全部成功
+# message: 执行结果描述
+float32 arm_angle        # 机械臂目标角度（度），负值表示使用配置默认值
+float32 servo1_open_angle
+float32 servo2_open_angle
+bool    reset_arm        # 完成后是否复位机械臂
+---
+bool success
+string message

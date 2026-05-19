@@ -1,0 +1,9 @@
+<launch>
+  <arg name="config_file" default="$(find fine_tuning)/config/fine_tuning.yaml"/>
+
+  <rosparam file="$(arg config_file)" command="load" ns="fine_tuning_node"/>
+
+  <node pkg="fine_tuning" type="fine_tuning_node" name="fine_tuning_node" output="screen">
+    <!-- 所有参数通过 rosparam 加载，此处可覆盖 -->
+  </node>
+</launch>

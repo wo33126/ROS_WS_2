@@ -1,0 +1,22 @@
+# 机械臂+夹爪控制参数
+can_device: "can1"             # CAN 接口名称（CAN2对应 can1）
+arm_can_id: 0x205             # 机械臂电机 CAN ID（地址5: 0x205）
+position_cmd_code: 0x10       # 位置模式指令码
+arm_angle_scale: 2.78         # 角度→编码器计数值比例（1000 counts/360° ≈ 2.78）
+
+# 默认动作参数
+default_arm_angle: 90.0         # 默认机械臂目标角度（度）
+default_servo1_open_angle: 90.0 # 默认舵机1张开角度（度）
+default_servo2_open_angle: 90.0 # 默认舵机2张开角度（度）
+default_reset_arm: true         # 完成后是否复位机械臂
+
+# 时序参数
+post_servo1_delay_s: 0.5      # 舵机1动作后等待时间 (s)
+post_servo2_delay_s: 1.0      # 舵机2动作后等待时间 (s)
+arm_move_timeout_s: 3.0       # 机械臂移动等待时间 (s)
+
+# 推出动作参数（/arm_place_medicine 服务使用）
+push_distance_m: 0.05         # 推出距离 (m)
+push_velocity: 0.03           # 推出速度 (m/s)
+push_timeout_s: 5.0           # 推出超时 (s)
+push_cmd_code: 0x11           # 线性移动指令码

@@ -1,0 +1,26 @@
+<launch>
+  <arg name="params_file" default="$(find robot_bringup)/config/robot_params.yaml"/>
+  <arg name="fixed_route_file" default="$(find robot_bringup)/config/fixed_route.yaml"/>
+  <arg name="enable_twist_test" default="false"/>
+  <arg name="enable_fixed_route" default="false"/>
+
+  <rosparam file="$(arg params_file)" command="load"/>
+
+  <node pkg="motion_planner" type="cmd_vel_mux_node" name="cmd_vel_mux_node" output="screen">
+    <param name="publish_rate_hz" value="30.0"/>
+  </node>
+
+  <node pkg="motion_planner" type="base_odometry_node" name="base_odometry_node" output="screen">
+    <param name="odom_publish_hz" value="50.0"/>
+  </node>
+
+  <node pkg="motion_planner" type="planner_node" name="planner_node" output="screen">
+    <param name="print_debug_log" value="true"/>
+  </node>
+
+  <node if="$(arg enable_twist_test)" pkg="motion_planner" type="twist_test_node" name="twist_test_node" output="screen"/>
+
+  <node if="$(arg enable_fixed_route)" pkg="motion_planner" type="fixed_route_runner_node" name="fixed_route_runner_node" output="screen">
+    <rosparam command="load" file="$(arg fixed_route_file)"/>
+  </node>
+</launch>

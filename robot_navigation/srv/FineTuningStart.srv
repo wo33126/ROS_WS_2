@@ -1,0 +1,4 @@
+# 微调启动服务（空请求）
+---
+bool success       # 微调是否完成
+string message     # 状态信息

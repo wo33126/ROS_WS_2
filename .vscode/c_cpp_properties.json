@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/fire/catkin_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/fire/ros_ws/src/arm_interface/include/**",
+        "/home/fire/catkin_ws/src/robot24/arm_traj_splitter/include/**",
+        "/home/fire/catkin_ws/src/can_driver/include/**",
+        "/home/fire/ros_ws/src/can_motor_interface/include/**",
+        "/home/fire/catkin_ws/src/circle_detection/include/**",
+        "/home/fire/catkin_ws/src/robot24/vision_opencv/cv_bridge/include/**",
+        "/home/fire/catkin_ws/src/robot24/vision_opencv/image_geometry/include/**",
+        "/home/fire/ros_ws/src/motion_planner/include/**",
+        "/home/fire/catkin_ws/src/robot24/vision_pkg/include/**",
+        "/home/fire/catkin_ws/src/wpr_simulation/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

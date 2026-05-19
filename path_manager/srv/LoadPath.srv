@@ -1,0 +1,5 @@
+# 重新加载路径 YAML 文件
+string file_path   # YAML 文件完整路径；留空则使用上次路径
+---
+bool success       # 是否加载成功
+string message     # 额外信息（错误原因或加载摘要）

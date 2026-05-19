@@ -1,0 +1,23 @@
+# ── 路径跟踪控制器参数 ─────────────────────────────────────
+# 此文件由 path_tracker.launch 加载
+
+# 控制循环频率 (Hz)
+control_rate_hz: 30.0
+
+# ── 比例控制器增益 ──
+kp_linear: 0.5        # 线速度比例增益
+kp_angular: 1.5       # 角速度比例增益
+
+# ── 速度限制（会被 /robot/max_* 覆盖，此处为后备值） ──
+max_linear_vel: 1.0   # 最大线速度 (m/s)
+max_angular_vel: 2.0  # 最大角速度 (rad/s)
+
+# ── 到达判定 ──
+position_tolerance: 0.05   # 默认位置容差 (m)，会被路径点自带的 tolerance 覆盖
+heading_tolerance: 0.08    # 朝向对齐容差 (rad)，仅 turn-then-move 模式使用
+arrival_hold_time: 0.5     # 到达后稳定保持时间 (s)
+
+# ── 控制策略 ──
+# true:  先原地转向对准目标方向，再前进
+# false: 同时控制线速度和角速度（更平滑，推荐）
+use_turn_then_move: false

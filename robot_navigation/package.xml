@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>robot_navigation</name>
+  <version>0.0.2</version>
+  <description>
+    完整导航功能聚合包：包含任务状态机、二维码/条形码识别、药箱控制、
+    显示屏输出、启动信号接收等所有导航相关节点。
+    同时编排 launch 启动文件。
+  </description>
+
+  <maintainer email="fire@todo.todo">fire</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- 编译依赖 -->
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>path_manager</build_depend>
+
+  <!-- 运行依赖 -->
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>path_manager</exec_depend>
+
+  <!-- 编排依赖（被 launch 引用的所有功能包） -->
+  <exec_depend>can_motor_interface</exec_depend>
+  <exec_depend>motion_planner</exec_depend>
+  <exec_depend>arm_interface</exec_depend>
+  <exec_depend>fine_tuning</exec_depend>
+  <exec_depend>arm_and_gripper</exec_depend>
+  <exec_depend>robot_bringup</exec_depend>
+
+  <export/>
+</package>

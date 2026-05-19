@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>arm_interface</name>
+  <version>0.0.1</version>
+  <description>Arm CAN control interface for joint command/state bridge.</description>
+
+  <maintainer email="fire@todo.todo">fire</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <export/>
+</package>

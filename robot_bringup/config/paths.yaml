@@ -1,0 +1,20 @@
+paths:
+  - name: "medicine_rack"
+    points:
+      - {x: 1.0, y: 0.0, tolerance: 0.05}
+      - {x: 1.5, y: 0.5, tolerance: 0.05}
+      - {x: 2.0, y: 0.0, tolerance: 0.05}
+
+  - name: "charging_station"
+    points:
+      - {x: 0.0, y: 0.0, tolerance: 0.05}
+      - {x: -0.5, y: -0.3, tolerance: 0.08}
+      - {x: -0.5, y: -0.8, tolerance: 0.05}
+
+  - name: "patrol_loop"
+    points:
+      - {x: 0.0, y: 0.0, tolerance: 0.05}
+      - {x: 2.0, y: 0.0, tolerance: 0.05}
+      - {x: 2.0, y: 1.5, tolerance: 0.05}
+      - {x: 0.0, y: 1.5, tolerance: 0.05}
+      - {x: 0.0, y: 0.0, tolerance: 0.05}

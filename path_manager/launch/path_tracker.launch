@@ -1,0 +1,23 @@
+<launch>
+  <arg name="control_rate_hz" default="30.0"/>
+  <arg name="kp_linear" default="0.5"/>
+  <arg name="kp_angular" default="1.5"/>
+  <arg name="max_linear_vel" default="1.0"/>
+  <arg name="max_angular_vel" default="2.0"/>
+  <arg name="position_tolerance" default="0.05"/>
+  <arg name="heading_tolerance" default="0.08"/>
+  <arg name="use_turn_then_move" default="false"/>
+  <arg name="arrival_hold_time" default="0.5"/>
+
+  <node pkg="path_manager" type="path_tracker_node" name="path_tracker_node" output="screen">
+    <param name="control_rate_hz" value="$(arg control_rate_hz)"/>
+    <param name="kp_linear" value="$(arg kp_linear)"/>
+    <param name="kp_angular" value="$(arg kp_angular)"/>
+    <param name="max_linear_vel" value="$(arg max_linear_vel)"/>
+    <param name="max_angular_vel" value="$(arg max_angular_vel)"/>
+    <param name="position_tolerance" value="$(arg position_tolerance)"/>
+    <param name="heading_tolerance" value="$(arg heading_tolerance)"/>
+    <param name="use_turn_then_move" value="$(arg use_turn_then_move)"/>
+    <param name="arrival_hold_time" value="$(arg arrival_hold_time)"/>
+  </node>
+</launch>

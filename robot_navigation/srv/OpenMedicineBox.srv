@@ -1,0 +1,5 @@
+# 打开药箱服务
+int8 box_id        # 药箱编号 (1 或 3)
+---
+bool success       # 是否成功打开
+string message     # 状态信息

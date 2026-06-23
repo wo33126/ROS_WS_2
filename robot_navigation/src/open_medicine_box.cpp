@@ -1,31 +1,15 @@
 /**
  * @file open_medicine_box.cpp
- * @brief 药箱开启控制节点
- *
- * 提供 /open_medicine_box 服务，根据 box_id 通过 CAN1 发送命令给 STM32，
- * 控制对应药箱的舵机旋转 90° 打开箱盖。
- *
- * CAN协议（自定义）：
- *   CAN ID: 0x206
- *   Data[0]: 指令码 (0x20 = 舵机控制)
- *   Data[1]: 舵机编号 (box_id: 1 或 3)
- *   Data[2]: 目标角度 (0~180°, 90° 为打开)
- *   Data[3-7]: 保留
+ * @brief 药箱开启控制节点（使用公共 CAN 通信库）
  */
 
 #include <ros/ros.h>
 #include <robot_navigation/OpenMedicineBox.h>
+#include "robot_navigation/can_utils.h"
 
-#include <cerrno>
+#include <algorithm>
 #include <cstring>
 #include <string>
-
-#include <linux/can.h>
-#include <linux/can/raw.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
 namespace robot_navigation {
 
@@ -34,7 +18,6 @@ class OpenMedicineBoxNode {
   OpenMedicineBoxNode(ros::NodeHandle& nh, ros::NodeHandle& pnh)
       : nh_(nh)
       , pnh_(pnh)
-      , socket_fd_(-1)
       , can_device_("can1")
       , can_id_(0x206)
       , servo_cmd_code_(0x20)
@@ -52,17 +35,11 @@ class OpenMedicineBoxNode {
     pnh_.param<double>("hold_duration_sec", hold_duration_sec_, 1.0);
   }
 
-  ~OpenMedicineBoxNode() {
-    if (socket_fd_ >= 0) close(socket_fd_);
-  }
-
   bool init() {
-    // ── 服务 ──
     service_ = nh_.advertiseService("/open_medicine_box",
                                     &OpenMedicineBoxNode::callback, this);
 
-    // ── 初始化 CAN ──
-    if (!initCan()) {
+    if (!can_.open(can_device_)) {
       ROS_WARN("[open_medicine_box] CAN 初始化失败，将在首次调用时重试");
     }
 
@@ -71,7 +48,6 @@ class OpenMedicineBoxNode {
     ROS_INFO("[open_medicine_box]   打开角度: %.0f°, 保持时间: %.1f s",
              open_angle_deg_, hold_duration_sec_);
     ROS_INFO("[open_medicine_box]   服务 /open_medicine_box 已就绪");
-
     return true;
   }
 
@@ -94,7 +70,6 @@ class OpenMedicineBoxNode {
       return true;
     }
 
-    // 等待舵机执行到位
     ros::Duration(hold_duration_sec_).sleep();
 
     res.success = true;
@@ -103,63 +78,19 @@ class OpenMedicineBoxNode {
     return true;
   }
 
-  bool initCan() {
-    if (socket_fd_ >= 0) return true;
-
-    int fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    if (fd < 0) {
-      ROS_ERROR("[open_medicine_box] CAN socket 创建失败: %s", std::strerror(errno));
-      return false;
-    }
-
-    struct ifreq ifr;
-    std::memset(&ifr, 0, sizeof(ifr));
-    std::snprintf(ifr.ifr_name, IFNAMSIZ, "%s", can_device_.c_str());
-    if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
-      ROS_ERROR("[open_medicine_box] ioctl(SIOCGIFINDEX) 失败: %s", std::strerror(errno));
-      close(fd);
-      return false;
-    }
-
-    struct sockaddr_can addr;
-    std::memset(&addr, 0, sizeof(addr));
-    addr.can_family = AF_CAN;
-    addr.can_ifindex = ifr.ifr_ifindex;
-    if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-      ROS_ERROR("[open_medicine_box] bind 失败: %s", std::strerror(errno));
-      close(fd);
-      return false;
-    }
-
-    socket_fd_ = fd;
-    ROS_INFO("[open_medicine_box] CAN Socket 已连接: %s", can_device_.c_str());
-    return true;
-  }
-
   bool sendServoCommand(uint8_t box_id, double angle_deg) {
-    if (socket_fd_ < 0 && !initCan()) {
+    if (!can_.isOpen() && !can_.open(can_device_)) {
       ROS_ERROR("[open_medicine_box] CAN socket 不可用");
       return false;
     }
 
-    struct can_frame frame;
-    std::memset(&frame, 0, sizeof(frame));
-    frame.can_id = can_id_;
-    frame.can_dlc = 8;
+    uint8_t data[8] = {0};
+    data[0] = servo_cmd_code_;
+    data[1] = box_id;
+    data[2] = static_cast<uint8_t>(std::min(180.0, std::max(0.0, angle_deg)));
 
-    frame.data[0] = servo_cmd_code_;     // 指令码
-    frame.data[1] = box_id;              // 舵机编号
-    frame.data[2] = static_cast<uint8_t>(
-        std::min(180.0, std::max(0.0, angle_deg)));  // 目标角度
-    frame.data[3] = 0;
-    frame.data[4] = 0;
-    frame.data[5] = 0;
-    frame.data[6] = 0;
-    frame.data[7] = 0;
-
-    int nbytes = write(socket_fd_, &frame, sizeof(frame));
-    if (nbytes != static_cast<int>(sizeof(frame))) {
-      ROS_ERROR("[open_medicine_box] CAN 写入失败: %s", std::strerror(errno));
+    if (!can_.sendFrame(can_id_, data, 8)) {
+      ROS_ERROR("[open_medicine_box] CAN 发送失败");
       return false;
     }
 
@@ -172,7 +103,7 @@ class OpenMedicineBoxNode {
   ros::NodeHandle pnh_;
   ros::ServiceServer service_;
 
-  int socket_fd_;
+  CanInterface can_;
   std::string can_device_;
   uint32_t can_id_;
   uint8_t servo_cmd_code_;

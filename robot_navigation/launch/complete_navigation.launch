@@ -205,9 +205,62 @@
           name="teleop_twist_keyboard" output="screen"/>
   </group>
 
-  <!-- [待实现] 定位节点 — 用于提供全局定位信息（如 SLAM/AMCL/uwb）
-  <node pkg="positioning" type="positioning_node"
-        name="positioning_node" output="screen"/>
-  -->
+  <!-- ============================================================ -->
+  <!--  安全感知节点                                                 -->
+  <!-- ============================================================ -->
+
+  <!-- VL53L1X 激光测距传感器驱动（前方） -->
+  <node pkg="robot_navigation" type="vl53l1x_driver_node"
+        name="vl53l1x_driver_node" output="screen" required="false">
+    <param name="i2c_device" value="/dev/i2c-1"/>
+    <param name="i2c_address" value="41"/>
+    <param name="read_rate_hz" value="20.0"/>
+    <param name="distance_mode" value="2"/>
+    <param name="timing_budget_ms" value="50.0"/>
+    <param name="safety_threshold_mm" value="300.0"/>
+    <param name="critical_threshold_mm" value="100.0"/>
+    <param name="safety_timeout_sec" value="0.5"/>
+  </node>
+
+  <!-- 距离安全检测 — 自动避障制动 + Bug2 绕障 -->
+  <node pkg="robot_navigation" type="distance_safety_node"
+        name="distance_safety_node" output="screen" required="false">
+    <param name="safety_distance_mm" value="300.0"/>
+    <param name="critical_distance_mm" value="100.0"/>
+    <param name="reverse_speed" value="0.05"/>
+    <param name="distance_timeout_sec" value="0.5"/>
+    <param name="control_rate_hz" value="20.0"/>
+    <param name="check_forward_only" value="true"/>
+    <param name="bug2_enabled" value="true"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  系统监控节点                                                 -->
+  <!-- ============================================================ -->
+
+  <node pkg="robot_navigation" type="health_monitor_node"
+        name="health_monitor_node" output="screen">
+    <param name="publish_rate_hz" value="1.0"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  安全节点                                                     -->
+  <!-- ============================================================ -->
+
+  <!-- 急停按钮 -->
+  <node pkg="robot_navigation" type="emergency_stop_node"
+        name="emergency_stop_node" output="screen" required="false">
+    <param name="estop_pin" value="22"/>
+    <param name="led_pin" value="23"/>
+    <param name="debounce_ms" value="30"/>
+  </node>
+
+  <!-- 物理启动按钮 -->
+  <node pkg="robot_navigation" type="start_button_node"
+        name="start_button_node" output="screen">
+    <param name="button_pin" value="17"/>
+    <param name="led_pin" value="27"/>
+    <param name="debounce_ms" value="50"/>
+  </node>
 
 </launch>

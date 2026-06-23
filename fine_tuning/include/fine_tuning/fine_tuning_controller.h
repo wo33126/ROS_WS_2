@@ -11,7 +11,7 @@ namespace fine_tuning {
 /**
  * @brief 终点位置微调控制器
  *
- * 订阅 /path_finished（path_tracker_node 输出）和 /vl53l1x_distance（STM32 上报距离，mm）。
+ * 订阅 /path_finished（path_tracker_node 输出）和 /vl53l1x_distance（VL53L1X 传感器驱动或 STM32 上报距离，mm）。
  * 当路径跟踪完成后，根据 VL53L1X 传感器距离值进行位置微调，使距离逼近目标值。
  *
  * 工作原理：

@@ -23,6 +23,7 @@
   <build_depend>cv_bridge</build_depend>
   <build_depend>message_generation</build_depend>
   <build_depend>path_manager</build_depend>
+  <build_depend>arm_and_gripper</build_depend>
 
   <!-- 运行依赖 -->
   <exec_depend>roscpp</exec_depend>
@@ -34,6 +35,7 @@
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>path_manager</exec_depend>
+  <exec_depend>arm_and_gripper</exec_depend>
 
   <!-- 编排依赖（被 launch 引用的所有功能包） -->
   <exec_depend>can_motor_interface</exec_depend>

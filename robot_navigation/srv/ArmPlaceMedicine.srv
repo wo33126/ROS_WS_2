@@ -1,5 +1,0 @@
-# 机械臂放置药品服务
-int8 bed_id        # 病床编号 (1 或 3)
----
-bool success       # 是否执行成功
-string message     # 状态信息

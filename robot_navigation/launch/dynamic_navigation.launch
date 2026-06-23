@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<!--
+  ==============================================================================
+   动态导航启动文件 — robot_navigation/launch/dynamic_navigation.launch
+  ==============================================================================
+
+  基于 AMCL + move_base 的动态导航方案，替代固定路线模式。
+
+  使用方式：
+    roslaunch robot_navigation dynamic_navigation.launch
+
+  前置条件：
+    - 已构建场地地图（map_server 加载）
+    - 已安装 move_base, amcl, teb_local_planner 包
+
+  与固定路线模式的区别：
+    - 使用全局+局部代价地图进行实时路径规划
+    - AMCL 提供实时定位
+    - 局部规划器可动态避障
+    - 适合随机障碍物场景
+  ==============================================================================
+-->
+<launch>
+  <!-- ======================== 地图 ============================ -->
+
+  <arg name="map_file" default="$(find robot_navigation)/maps/arena.yaml"/>
+  <arg name="use_map_server" default="true"/>
+
+  <group if="$(arg use_map_server)">
+    <node pkg="map_server" type="map_server"
+          name="map_server" args="$(arg map_file)"/>
+  </group>
+
+  <!-- ======================== 定位 ============================ -->
+
+  <!-- AMCL — 自适应蒙特卡洛定位 -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <remap from="scan" to="/scan"/>
+
+    <param name="min_particles" value="100"/>
+    <param name="max_particles" value="2000"/>
+    <param name="kld_err" value="0.01"/>
+    <param name="update_min_d" value="0.05"/>
+    <param name="update_min_a" value="0.1"/>
+    <param name="resample_interval" value="2"/>
+    <param name="transform_tolerance" value="0.5"/>
+
+    <param name="odom_model_type" value="diff-corrected"/>
+    <param name="odom_alpha1" value="0.2"/>
+    <param name="odom_alpha2" value="0.2"/>
+    <param name="odom_alpha3" value="0.2"/>
+    <param name="odom_alpha4" value="0.2"/>
+
+    <param name="initial_pose_x" value="0.0"/>
+    <param name="initial_pose_y" value="0.0"/>
+    <param name="initial_pose_a" value="0.0"/>
+  </node>
+
+  <!-- ======================== 导航 ============================ -->
+
+  <!-- move_base — 全局 + 局部路径规划 -->
+  <node pkg="move_base" type="move_base" name="move_base"
+        output="screen" respawn="false">
+
+    <!-- 规划器选择 -->
+    <param name="base_global_planner" value="global_planner/GlobalPlanner"/>
+    <param name="base_local_planner" value="teb_local_planner/TebLocalPlanner"/>
+
+    <!-- 通用参数 -->
+    <param name="controller_frequency" value="10.0"/>
+    <param name="planner_frequency" value="5.0"/>
+
+    <!-- 全局代价地图 -->
+    <rosparam ns="global_costmap" subst_value="true">
+      global_frame: map
+      robot_base_frame: base_link
+      update_frequency: 5.0
+      publish_frequency: 2.0
+      static_map: true
+      rolling_window: false
+      transform_tolerance: 0.5
+      plugins:
+        - {name: static_layer,    type: "costmap_2d::StaticLayer"}
+        - {name: obstacle_layer,  type: "costmap_2d::VoxelLayer"}
+        - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+    </rosparam>
+
+    <!-- 局部代价地图 -->
+    <rosparam ns="local_costmap" subst_value="true">
+      global_frame: odom
+      robot_base_frame: base_link
+      update_frequency: 10.0
+      publish_frequency: 5.0
+      static_map: false
+      rolling_window: true
+      width: 4.0
+      height: 4.0
+      resolution: 0.05
+      transform_tolerance: 0.5
+      plugins:
+        - {name: obstacle_layer,  type: "costmap_2d::VoxelLayer"}
+        - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+    </rosparam>
+
+    <!-- 全局规划器 (A*) -->
+    <rosparam ns="GlobalPlanner" subst_value="true">
+      use_dijkstra: false
+      use_quadratic: true
+      use_grid_path: false
+      old_navfn_behavior: false
+    </rosparam>
+
+    <!-- TEB 局部规划器 -->
+    <rosparam ns="TebLocalPlanner" subst_value="true">
+      max_vel_x: 1.0
+      max_vel_x_backwards: 0.2
+      max_vel_y: 1.0
+      max_vel_theta: 2.0
+      acc_lim_x: 0.5
+      acc_lim_y: 0.5
+      acc_lim_theta: 1.0
+
+      holonomic_robot: true
+      min_turning_radius: 0.0
+
+      dt_ref: 0.3
+      dt_hysteresis: 0.1
+      min_obstacle_dist: 0.25
+      include_costmap_obstacles: true
+      costmap_obstacles_behind_robot_dist: 1.0
+
+      xy_goal_tolerance: 0.08
+      yaw_goal_tolerance: 0.10
+      free_goal_vel: false
+
+      obstacle_poses_affected: 30
+    </rosparam>
+
+    <!-- costmap 通用 -->
+    <param name="obstacle_range" value="3.0"/>
+    <param name="raytrace_range" value="3.5"/>
+    <rosparam param="footprint">
+      [[-0.25, -0.20], [-0.25, 0.20], [0.25, 0.20], [0.25, -0.20]]
+    </rosparam>
+    <param name="inflation_radius" value="0.30"/>
+    <param name="cost_scaling_factor" value="3.0"/>
+
+    <!-- 目标容差 -->
+    <param name="xy_goal_tolerance" value="0.08"/>
+    <param name="yaw_goal_tolerance" value="0.10"/>
+  </node>
+
+</launch>

@@ -4,7 +4,7 @@
 
 #include <robot_navigation/QrResult.h>
 #include <robot_navigation/OpenMedicineBox.h>
-#include <robot_navigation/ArmPlaceMedicine.h>
+#include <arm_and_gripper/ArmPlaceMedicine.h>
 #include <robot_navigation/Speak.h>
 
 #include <path_manager/SelectPath.h>
@@ -23,7 +23,7 @@
 namespace robot_navigation {
 
 /**
- * @brief 任务状态机节点
+ * @brief 任务状态机节点（事件驱动，非阻塞）
  *
  * 管理比赛全流程状态机：
  *   IDLE → GOTO_NURSE → SCAN_QR → GOTO_BED_A → POSITION_IN_CIRCLE →
@@ -31,6 +31,12 @@ namespace robot_navigation {
  *   GOTO_BED_B → ... → RETURN_HOME → STOP
  *
  * 全局 180 秒超时保护，各阶段 30 秒超时保护。
+ *
+ * 设计原则：
+ *   - 状态机循环由 10Hz 定时器驱动
+ *   - 每个状态的动作只执行一次（通过 action_initiated_ 标志保护）
+ *   - 状态迁移条件由话题回调设置标志，定时器检查
+ *   - 无阻塞等待，所有 while+sleep 已替换为事件驱动
  */
 class MissionController {
  public:
@@ -70,12 +76,39 @@ class MissionController {
   void barcodeBed3Callback(const std_msgs::String::ConstPtr& msg);
   void startSignalCallback(const std_msgs::Empty::ConstPtr& msg);
   void odomCallback(const nav_msgs::Odometry::ConstPtr& msg);
+  void pathFinishedCallback(const std_msgs::Bool::ConstPtr& msg);
+  void fineTuningDoneCallback(const std_msgs::Bool::ConstPtr& msg);
   void missionTimerCallback(const ros::TimerEvent& event);
   void stateMachineTimerCallback(const ros::TimerEvent& event);
 
   // ── 状态处理 ──
   void processState();
-  bool executeStateTransition();
+  void enterState(State new_state);
+
+  // ── 各状态入口动作（只执行一次） ──
+  void actionGotoNurse();
+  void actionScanQr();
+  void actionGotoBedA();
+  void actionPositionInCircleA();
+  void actionScanBarcodeA();
+  void actionOpenBoxA();
+  void actionPlaceMedicineA();
+  void actionVoiceA();
+  void actionGotoBedB();
+  void actionPositionInCircleB();
+  void actionScanBarcodeB();
+  void actionOpenBoxB();
+  void actionPlaceMedicineB();
+  void actionVoiceB();
+  void actionReturnHome();
+  void actionHomeCheck();
+
+  // ── 状态完成条件检查（事件驱动） ──
+  bool checkGotoComplete();
+  bool checkScanQrComplete();
+  bool checkPositionInCircleComplete();
+  bool checkScanBarcodeComplete();
+  bool checkHomeCheckComplete();
 
   // ── 服务调用辅助 ──
   bool callSelectPath(const std::string& path_name);
@@ -84,8 +117,26 @@ class MissionController {
   bool callArmPlaceMedicine(int8_t bed_id);
   bool callSpeak(const std::string& text);
 
+  // ── 底盘锁死 ──
+  void lockChassis();
+  void unlockChassis();
+
+  // ── 条码持久显示更新 ──
+  void updatePersistentBarcodeDisplay();
+
+  // ── 床号视觉校验 ──
+  bool verifyBedNumber(int expected_bed);
+
+  // ── 事件等待 ──
+  bool isStageTimedOut() const;
+
   // ── 回归检测 ──
   bool isRobotInHomeZone() const;
+
+  // ── 重置与失败处理 ──
+  void resetMissionState();
+  void enterFailedState(const std::string& reason);
+  void enterTimeoutState();
 
   // ── 状态描述 ──
   std::string stateToString(State s) const;
@@ -105,18 +156,21 @@ class MissionController {
   ros::Subscriber barcode_bed3_sub_;
   ros::Subscriber start_signal_sub_;
   ros::Subscriber odom_sub_;
+  ros::Subscriber path_finished_sub_;
+  ros::Subscriber fine_tuning_done_sub_;
 
   // 发布
   ros::Publisher mission_finished_pub_;
   ros::Publisher mission_timeout_pub_;
   ros::Publisher stop_all_pub_;
   ros::Publisher display_text_pub_;
+  ros::Publisher chassis_lock_pub_;      // 底盘锁死信号
 
   // 服务客户端
   ros::ServiceClient path_select_client_;
   ros::ServiceClient fine_tuning_client_;     // std_srvs::Trigger
   ros::ServiceClient open_box_client_;
-  ros::ServiceClient arm_place_client_;
+  ros::ServiceClient arm_place_client_;   // arm_and_gripper::ArmPlaceMedicine
   ros::ServiceClient speak_client_;
 
   // 定时器
@@ -128,19 +182,32 @@ class MissionController {
   std::atomic<bool> mission_started_;
   std::atomic<bool> mission_completed_;
 
+  // ── 状态动作保护（防止重复执行入口动作） ──
+  bool action_initiated_;
+
   // ── QR 结果 ──
   QrResult qr_result_;
-  bool qr_received_;
+  std::atomic<bool> qr_received_;
 
   // ── 条形码 ──
   std::string barcode_bed1_value_;
   std::string barcode_bed3_value_;
-  bool barcode_bed1_received_;
-  bool barcode_bed3_received_;
+  std::atomic<bool> barcode_bed1_received_;
+  std::atomic<bool> barcode_bed3_received_;
+
+  // ── 条形码持久显示行（保持到比赛结束） ──
+  std::string barcode_display_line1_;
+  std::string barcode_display_line2_;
+
+  // ── 路径完成信号 ──
+  std::atomic<bool> path_finished_received_;
+
+  // ── 微调完成信号 ──
+  std::atomic<bool> fine_tuning_done_received_;
 
   // ── 里程计 ──
   nav_msgs::Odometry current_odom_;
-  bool odom_received_;
+  std::atomic<bool> odom_received_;
   mutable std::mutex odom_mutex_;
 
   // ── 阶段计时 ──
@@ -179,6 +246,19 @@ class MissionController {
 
   // ── 回归稳定时间 ──
   double home_hold_sec_;
+
+  // ── 语音播报时间戳（用于5秒内校验） ──
+  ros::Time medicine_placed_time_;     // 药品放置完成时间
+  bool voice_timing_active_;           // 语音计时激活
+
+  // ── 超时恢复：是否已尝试跳过当前阶段 ──
+  bool stage_skip_attempted_;
+
+  // ── 底盘锁死标志 ──
+  bool chassis_locked_;
+
+  // ── 床号视觉校验结果 ──
+  bool bed_verified_;
 };
 
 }  // namespace robot_navigation

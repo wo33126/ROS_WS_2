@@ -1,4 +1,47 @@
 paths:
+  # ── 任务系统所需路径 ──
+  - name: "nurse_station"
+    description: "从起始区到护士台的路径"
+    points:
+      - {x: 0.0, y: 0.0, tolerance: 0.05}
+      - {x: 0.8, y: 0.0, tolerance: 0.05}
+      - {x: 1.5, y: 0.0, tolerance: 0.03}
+
+  - name: "bed1_circle"
+    description: "从护士台到1号病床圆圈区域"
+    points:
+      - {x: 1.5, y: 0.0, tolerance: 0.03}
+      - {x: 1.5, y: 0.8, tolerance: 0.05}
+
+  - name: "bed3_circle"
+    description: "从护士台到3号病床圆圈区域"
+    points:
+      - {x: 1.5, y: 0.0, tolerance: 0.03}
+      - {x: 1.5, y: -0.8, tolerance: 0.05}
+
+  - name: "HOME"
+    description: "从病床区域返回起始区"
+    points:
+      - {x: 1.5, y: 0.0, tolerance: 0.05}
+      - {x: 0.8, y: 0.0, tolerance: 0.05}
+      - {x: 0.0, y: 0.0, tolerance: 0.05}
+
+  # ── 病床专属返回路径（从病床位置出发，更高效） ──
+  - name: "bed1_to_home"
+    description: "从1号病床(y=0.8)返回起始区"
+    points:
+      - {x: 1.5, y: 0.8, tolerance: 0.05}
+      - {x: 0.8, y: 0.4, tolerance: 0.05}
+      - {x: 0.0, y: 0.0, tolerance: 0.05}
+
+  - name: "bed3_to_home"
+    description: "从3号病床(y=-0.8)返回起始区"
+    points:
+      - {x: 1.5, y: -0.8, tolerance: 0.05}
+      - {x: 0.8, y: -0.4, tolerance: 0.05}
+      - {x: 0.0, y: 0.0, tolerance: 0.05}
+
+  # ── 通用测试路径 ──
   - name: "medicine_rack"
     points:
       - {x: 1.0, y: 0.0, tolerance: 0.05}

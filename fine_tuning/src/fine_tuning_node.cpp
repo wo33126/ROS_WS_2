@@ -242,7 +242,7 @@ void FineTuningController::controlTimerCallback(const ros::TimerEvent& /*event*/
   }
 }
 
-// ── /fine_tuning/start 服务回调 ────────────────────────────
+// ── /fine_tuning/start 服务回调（非阻塞） ────────────────────
 bool FineTuningController::fineTuningStartCallback(
     std_srvs::Trigger::Request& /*req*/,
     std_srvs::Trigger::Response& res) {
@@ -269,22 +269,18 @@ bool FineTuningController::fineTuningStartCallback(
   settle_start_time_ = ros::Time::now();
   publishStop();
 
-  // 等待微调完成（同步阻塞服务）
-  ros::Rate r(static_cast<int>(control_rate_hz_));
-  while (ros::ok() && state_ == State::FINE_TUNING) {
-    ros::spinOnce();
-    r.sleep();
+  // 清空上次的完成信号
+  {
+    std_msgs::Bool clear_msg;
+    clear_msg.data = false;
+    fine_tuning_done_pub_.publish(clear_msg);
   }
 
-  if (state_ == State::DONE) {
-    res.success = true;
-    res.message = "微调完成";
-    ROS_INFO("[fine_tuning] /fine_tuning/start 服务: 微调完成");
-  } else {
-    res.success = false;
-    res.message = "微调被中断或失败";
-    ROS_WARN("[fine_tuning] /fine_tuning/start 服务: %s", res.message.c_str());
-  }
+  // 非阻塞：立即返回，微调由 controlTimerCallback 驱动
+  // mission_controller 通过 /fine_tuning_done 话题获知完成
+  res.success = true;
+  res.message = "微调已启动（异步执行）";
+  ROS_INFO("[fine_tuning] /fine_tuning/start 服务: 微调已启动");
 
   return true;
 }

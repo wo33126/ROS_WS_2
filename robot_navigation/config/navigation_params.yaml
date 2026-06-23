@@ -94,3 +94,104 @@ switches:
   enable_fine_tuning: true
   enable_servo_controller: true
   enable_arm_and_gripper: true
+
+# ── 任务状态机参数 ──────────────────────────────────────────────
+mission_controller:
+  stage_timeout_sec: 30.0
+  mission_timeout_sec: 180.0
+  state_machine_rate_hz: 10.0
+  home_hold_sec: 5.0
+  circle_bed1_x: 2.0
+  circle_bed1_y: 1.0
+  circle_bed1_radius: 0.3
+  circle_bed3_x: 2.0
+  circle_bed3_y: -1.0
+  circle_bed3_radius: 0.3
+  home_zone_vertices:
+    - {x: -0.5, y: -0.5}
+    - {x:  0.5, y: -0.5}
+    - {x:  0.5, y:  0.5}
+    - {x: -0.5, y:  0.5}
+
+# ── 距离安全 + Bug2 避障参数 ──────────────────────────────────
+distance_safety:
+  safety_distance_mm: 300.0
+  critical_distance_mm: 100.0
+  reverse_speed: 0.05
+  distance_timeout_sec: 0.5
+  control_rate_hz: 20.0
+  check_forward_only: true
+  bug2_enabled: true
+  bug2_side_clearance_mm: 400.0
+  bug2_turn_speed: 0.5
+  bug2_along_speed: 0.1
+  bug2_max_duration_sec: 10.0
+
+# ── 视频推流参数 ──────────────────────────────────────────────
+video_stream:
+  http_port: 8080
+  jpeg_quality: 70
+  stream_width: 640
+  stream_height: 480
+  framerate: 15.0
+
+# ── 音频聊天参数 ──────────────────────────────────────────────
+audio_chat:
+  enabled: true
+  sample_rate: 16000
+  doctor_ip: "192.168.1.100"
+  rx_port: 5004
+  tx_port: 5005
+
+# ── 动态导航 (move_base + AMCL) 参数 ──────────────────────────
+# 仅在 enable_dynamic_nav:=true 时使用
+move_base:
+  # 全局代价地图
+  global_costmap:
+    global_frame: map
+    robot_base_frame: base_link
+    update_frequency: 5.0
+    publish_frequency: 2.0
+    static_map: true
+    rolling_window: false
+    transform_tolerance: 0.5
+
+  # 局部代价地图
+  local_costmap:
+    global_frame: odom
+    robot_base_frame: base_link
+    update_frequency: 10.0
+    publish_frequency: 5.0
+    static_map: false
+    rolling_window: true
+    width: 4.0
+    height: 4.0
+    resolution: 0.05
+
+  # 通用
+  obstacle_range: 3.0
+  raytrace_range: 3.5
+  footprint: [[-0.25, -0.20], [-0.25, 0.20], [0.25, 0.20], [0.25, -0.20]]
+  inflation_radius: 0.30
+  cost_scaling_factor: 3.0
+
+  # 规划器
+  base_global_planner: "global_planner/GlobalPlanner"
+  base_local_planner: "teb_local_planner/TebLocalPlanner"
+
+  # 目标容差
+  xy_goal_tolerance: 0.08
+  yaw_goal_tolerance: 0.10
+
+# ── AMCL 定位 ─────────────────────────────────────────────────
+amcl:
+  min_particles: 100
+  max_particles: 2000
+  kld_err: 0.01
+  update_min_d: 0.05
+  update_min_a: 0.1
+  resample_interval: 2
+  transform_tolerance: 0.5
+  laser_model_type: "likelihood_field"
+  laser_likelihood_max_dist: 2.0
+  odom_model_type: "diff-corrected"

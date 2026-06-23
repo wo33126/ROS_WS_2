@@ -197,7 +197,134 @@
     <param name="start_cmd_code" value="240"/>
   </node>
 
+  <!-- 7.3 物理启动按钮（GPIO 直连） -->
+  <node pkg="robot_navigation" type="start_button_node"
+        name="start_button_node" output="screen">
+    <param name="button_pin" value="17"/>
+    <param name="led_pin" value="27"/>
+    <param name="debounce_ms" value="50"/>
+    <param name="active_low" value="true"/>
+    <param name="led_enabled" value="true"/>
+  </node>
+
+  <!-- 7.4 视频推流（MJPEG over HTTP） -->
+  <group if="$(arg enable_camera)">
+    <node pkg="robot_navigation" type="video_stream_node"
+          name="video_stream_node" output="screen">
+      <param name="http_port" value="8080"/>
+      <param name="jpeg_quality" value="70"/>
+      <param name="stream_width" value="640"/>
+      <param name="stream_height" value="480"/>
+      <param name="framerate" value="15.0"/>
+    </node>
+
+    <!-- 7.5 双向音频聊天 -->
+    <node pkg="robot_navigation" type="audio_chat_node"
+          name="audio_chat_node" output="screen">
+      <param name="enabled" value="true"/>
+      <param name="sample_rate" value="16000"/>
+      <param name="doctor_ip" value="192.168.1.100"/>
+      <param name="rx_port" value="5004"/>
+      <param name="tx_port" value="5005"/>
+    </node>
+  </group>
+
   <!-- ============================================================ -->
+  <!--  第8层：安全感知层                                            -->
+  <!-- ============================================================ -->
+
+  <!-- 8.1 VL53L1X 激光测距传感器驱动 — I2C 读取距离数据（前方） -->
+  <node pkg="robot_navigation" type="vl53l1x_driver_node"
+        name="vl53l1x_driver_node" output="screen" required="true">
+    <param name="i2c_device" value="/dev/i2c-1"/>
+    <param name="i2c_address" value="41"/>       <!-- 0x29 -->
+    <param name="read_rate_hz" value="20.0"/>
+    <param name="distance_mode" value="2"/>       <!-- 中距离模式 -->
+    <param name="timing_budget_ms" value="50.0"/>
+    <param name="use_median_filter" value="true"/>
+    <param name="median_window_size" value="5"/>
+    <param name="use_moving_average" value="true"/>
+    <param name="moving_average_alpha" value="0.3"/>
+    <param name="safety_threshold_mm" value="300.0"/>
+    <param name="critical_threshold_mm" value="100.0"/>
+    <param name="safety_timeout_sec" value="0.5"/>
+  </node>
+
+  <!-- 8.1b VL53L1X 左侧传感器（I2C 地址 0x30，需硬件配置） -->
+  <node pkg="robot_navigation" type="vl53l1x_driver_node"
+        name="vl53l1x_driver_left" output="screen" required="false">
+    <param name="i2c_device" value="/dev/i2c-1"/>
+    <param name="i2c_address" value="48"/>       <!-- 0x30 -->
+    <param name="topic_name" value="/vl53l1x_distance_left"/>
+    <param name="read_rate_hz" value="20.0"/>
+    <param name="distance_mode" value="2"/>
+    <param name="timing_budget_ms" value="50.0"/>
+  </node>
+
+  <!-- 8.1c VL53L1X 右侧传感器（I2C 地址 0x31，需硬件配置） -->
+  <node pkg="robot_navigation" type="vl53l1x_driver_node"
+        name="vl53l1x_driver_right" output="screen" required="false">
+    <param name="i2c_device" value="/dev/i2c-1"/>
+    <param name="i2c_address" value="49"/>       <!-- 0x31 -->
+    <param name="topic_name" value="/vl53l1x_distance_right"/>
+    <param name="read_rate_hz" value="20.0"/>
+    <param name="distance_mode" value="2"/>
+    <param name="timing_budget_ms" value="50.0"/>
+  </node>
+
+  <!-- 8.2 距离安全检测 — 障碍物过近时通过 cmd_vel_safety 紧急制动 + Bug2 绕障 -->
+  <node pkg="robot_navigation" type="distance_safety_node"
+        name="distance_safety_node" output="screen" required="true">
+    <param name="safety_distance_mm" value="300.0"/>
+    <param name="critical_distance_mm" value="100.0"/>
+    <param name="reverse_speed" value="0.05"/>
+    <param name="distance_timeout_sec" value="0.5"/>
+    <param name="control_rate_hz" value="20.0"/>
+    <param name="check_forward_only" value="true"/>
+    <!-- Bug2 动态避障 -->
+    <param name="bug2_enabled" value="true"/>
+    <param name="bug2_side_clearance_mm" value="400.0"/>
+    <param name="bug2_turn_speed" value="0.5"/>
+    <param name="bug2_along_speed" value="0.1"/>
+    <param name="bug2_max_duration_sec" value="10.0"/>
+  </node>
+
+  <!-- 8.3 急停按钮（GPIO 直连） -->
+  <node pkg="robot_navigation" type="emergency_stop_node"
+        name="emergency_stop_node" output="screen" required="true">
+    <param name="estop_pin" value="22"/>
+    <param name="led_pin" value="23"/>
+    <param name="debounce_ms" value="30"/>
+    <param name="active_low" value="true"/>
+    <param name="poll_rate_hz" value="100.0"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  第9层：任务编排层（最顶层）                                  -->
+  <!-- ============================================================ -->
+
+  <!-- 9.1 语音播报服务 — 文字转语音输出 -->
+  <node pkg="robot_navigation" type="speak_node"
+        name="speak_node" output="screen">
+    <param name="language" value="zh"/>
+    <param name="speed" value="1.0"/>
+    <param name="volume" value="1.0"/>
+  </node>
+
+  <!-- 9.2 系统健康监控 — 关键话题检测 + 急停转发 -->
+  <node pkg="robot_navigation" type="health_monitor_node"
+        name="health_monitor_node" output="screen">
+    <param name="publish_rate_hz" value="1.0"/>
+    <param name="max_consecutive_failures" value="3"/>
+  </node>
+
+  <!-- 9.3 任务状态机 — 编排全部任务流程 -->
+  <node pkg="robot_navigation" type="mission_controller_node"
+        name="mission_controller_node" output="screen" required="true">
+    <rosparam file="$(arg mission_config)" command="load"/>
+  </node>
+
+</launch>
   <!--  第8层：任务编排层（最顶层）                                  -->
   <!-- ============================================================ -->
 

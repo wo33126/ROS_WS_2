@@ -1,17 +1,20 @@
 <launch>
   <!--
-    药品摆放控制 launch — 同时启动舵机控制和机械臂+夹爪控制
+    药品摆放控制 launch — 默认只启动机械臂+夹爪控制
     依赖: CAN接口已UP (sudo ip link set can1 up type can bitrate 1000000)
           pigpiod 已运行 (sudo pigpiod)
   -->
 
+  <arg name="enable_servo_controller" default="false"/>
   <arg name="servo_config" default="$(find arm_and_gripper)/config/servo_params.yaml"/>
   <arg name="arm_config" default="$(find arm_and_gripper)/config/arm_and_gripper.yaml"/>
 
   <!-- ===== 舵机控制节点 ===== -->
-  <include file="$(find arm_and_gripper)/launch/servo_controller.launch">
-    <arg name="config_file" value="$(arg servo_config)"/>
-  </include>
+  <group if="$(arg enable_servo_controller)">
+    <include file="$(find arm_and_gripper)/launch/servo_controller.launch">
+      <arg name="config_file" value="$(arg servo_config)"/>
+    </include>
+  </group>
 
   <!-- ===== 机械臂+夹爪主控制节点 ===== -->
   <rosparam file="$(arg arm_config)" command="load" ns="arm_and_gripper_node"/>

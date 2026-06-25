@@ -268,38 +268,59 @@ bool ArmAndGripperController::sendArmAngleCommand(double angle_deg) {
     return false;
   }
 
-  // 角度 → 编码器计数值
-  int32_t target_counts = static_cast<int32_t>(std::round(angle_deg * arm_angle_scale_));
-
-  // 构造 CAN 帧（与 arm_interface 协议兼容）
-  struct can_frame frame;
-  std::memset(&frame, 0, sizeof(frame));
-  frame.can_id = arm_can_id_;
-  frame.can_dlc = 8;
-
-  // 数据格式（与 Y42 STM32 X固件协议兼容）:
-  // [0]: 指令码 (position_cmd_code_)
-  // [1]: 电机索引 (0)
-  // [2-5]: 目标位置 (int32, little-endian)
-  // [6-7]: 保留
-  frame.data[0] = position_cmd_code_;
-  frame.data[1] = 0;  // 电机索引
-
-  frame.data[2] = static_cast<uint8_t>(target_counts & 0xFF);
-  frame.data[3] = static_cast<uint8_t>((target_counts >> 8) & 0xFF);
-  frame.data[4] = static_cast<uint8_t>((target_counts >> 16) & 0xFF);
-  frame.data[5] = static_cast<uint8_t>((target_counts >> 24) & 0xFF);
-  frame.data[6] = 0;
-  frame.data[7] = 0;
-
-  int nbytes = write(socket_fd_, &frame, sizeof(frame));
-  if (nbytes != static_cast<int>(sizeof(frame))) {
-    ROS_ERROR("[arm_and_gripper] CAN 写入失败: %s", std::strerror(errno));
+  // Y42 原生协议：使用地址 5 对应的双帧指令。
+  // arm_can_id_ 仍保留配置入口，但这里只取低 8 位作为电机地址。
+  const uint32_t motor_address = arm_can_id_ & 0xFFu;
+  if (motor_address == 0) {
+    ROS_ERROR("[arm_and_gripper] 无效的电机地址: 0x%03X", arm_can_id_);
     return false;
   }
 
-  ROS_INFO("[arm_and_gripper] CAN TX: ID=0x%03X, angle=%.1f° → counts=%d",
-           arm_can_id_, angle_deg, target_counts);
+  const uint32_t frame0_id = (motor_address << 8) | 0x00u;
+  const uint32_t frame1_id = (motor_address << 8) | 0x01u;
+
+  // 协议中的速度与角度单位
+  const uint16_t speed_rpm_x10 = 500;  // 50 RPM
+  const uint32_t target_degrees_x10 = static_cast<uint32_t>(std::round(std::fabs(angle_deg) * 10.0));
+  const uint8_t direction = (angle_deg >= 0.0) ? 1u : 0u;
+
+  auto send_frame = [this](const struct can_frame& frame) -> bool {
+    int nbytes = write(socket_fd_, &frame, sizeof(frame));
+    if (nbytes != static_cast<int>(sizeof(frame))) {
+      ROS_ERROR("[arm_and_gripper] CAN 写入失败: %s", std::strerror(errno));
+      return false;
+    }
+    return true;
+  };
+
+  struct can_frame frame0;
+  std::memset(&frame0, 0, sizeof(frame0));
+  frame0.can_id = frame0_id | CAN_EFF_FLAG;
+  frame0.can_dlc = 8;
+  frame0.data[0] = 0xFB;
+  frame0.data[1] = direction;
+  frame0.data[2] = static_cast<uint8_t>((speed_rpm_x10 >> 8) & 0xFF);
+  frame0.data[3] = static_cast<uint8_t>(speed_rpm_x10 & 0xFF);
+  frame0.data[4] = static_cast<uint8_t>((target_degrees_x10 >> 24) & 0xFF);
+  frame0.data[5] = static_cast<uint8_t>((target_degrees_x10 >> 16) & 0xFF);
+  frame0.data[6] = static_cast<uint8_t>((target_degrees_x10 >> 8) & 0xFF);
+  frame0.data[7] = static_cast<uint8_t>(target_degrees_x10 & 0xFF);
+
+  struct can_frame frame1;
+  std::memset(&frame1, 0, sizeof(frame1));
+  frame1.can_id = frame1_id | CAN_EFF_FLAG;
+  frame1.can_dlc = 4;
+  frame1.data[0] = 0xFB;
+  frame1.data[1] = 0x02;  // mode = 2，从当前位置打断
+  frame1.data[2] = 0x00; // 保留
+  frame1.data[3] = 0x6B;  // 校验
+
+  if (!send_frame(frame0) || !send_frame(frame1)) {
+    return false;
+  }
+
+  ROS_INFO("[arm_and_gripper] CAN TX: ID=0x%03X/0x%03X, dir=%u, speed=50RPM, angle=%.1f°",
+           frame0_id, frame1_id, direction, angle_deg);
   return true;
 }
 

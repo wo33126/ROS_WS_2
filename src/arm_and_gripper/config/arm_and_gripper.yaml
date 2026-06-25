@@ -1,11 +1,11 @@
 # 机械臂+夹爪控制参数
-can_device: "can1"             # CAN 接口名称（CAN2对应 can1）
+can_device: "can0"             # CAN 接口名称（CAN2对应 can1）
 arm_can_id: 0x205             # 机械臂电机 CAN ID（地址5: 0x205）
 position_cmd_code: 0x10       # 位置模式指令码
 arm_angle_scale: 2.78         # 角度→编码器计数值比例（1000 counts/360° ≈ 2.78）
 
 # 默认动作参数
-default_arm_angle: 90.0         # 默认机械臂目标角度（度）
+default_arm_angle: 180.0         # 默认机械臂目标角度（度）
 default_servo1_open_angle: 90.0 # 默认舵机1张开角度（度）
 default_servo2_open_angle: 90.0 # 默认舵机2张开角度（度）
 default_reset_arm: true         # 完成后是否复位机械臂

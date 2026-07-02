@@ -164,10 +164,10 @@
     <node pkg="usb_cam" type="usb_cam_node" name="usb_cam"
           output="screen" required="false">
       <param name="video_device" value="/dev/video0"/>
-      <param name="image_width" value="640"/>
-      <param name="image_height" value="480"/>
+      <param name="image_width" value="1280"/>
+      <param name="image_height" value="720"/>
       <param name="pixel_format" value="yuyv"/>
-      <param name="framerate" value="15"/>
+      <param name="framerate" value="25"/>
     </node>
 
     <!-- 6.2 二维码/条形码识别 -->
@@ -212,18 +212,19 @@
     <node pkg="robot_navigation" type="video_stream_node"
           name="video_stream_node" output="screen">
       <param name="http_port" value="8080"/>
-      <param name="jpeg_quality" value="70"/>
-      <param name="stream_width" value="640"/>
-      <param name="stream_height" value="480"/>
-      <param name="framerate" value="15.0"/>
+      <param name="jpeg_quality" value="85"/>
+      <param name="stream_width" value="1280"/>
+      <param name="stream_height" value="720"/>
+      <param name="framerate" value="25.0"/>
     </node>
 
     <!-- 7.5 双向音频聊天 -->
     <node pkg="robot_navigation" type="audio_chat_node"
           name="audio_chat_node" output="screen">
       <param name="enabled" value="true"/>
-      <param name="sample_rate" value="16000"/>
-      <param name="doctor_ip" value="192.168.1.100"/>
+      <param name="role" value="master"/>
+      <param name="sample_rate" value="48000"/>
+      <param name="remote_ip" value="192.168.15.129"/>
       <param name="rx_port" value="5004"/>
       <param name="tx_port" value="5005"/>
     </node>
@@ -319,16 +320,6 @@
   </node>
 
   <!-- 9.3 任务状态机 — 编排全部任务流程 -->
-  <node pkg="robot_navigation" type="mission_controller_node"
-        name="mission_controller_node" output="screen" required="true">
-    <rosparam file="$(arg mission_config)" command="load"/>
-  </node>
-
-</launch>
-  <!--  第8层：任务编排层（最顶层）                                  -->
-  <!-- ============================================================ -->
-
-  <!-- 8.1 任务状态机（最后启动，等待所有服务就绪） -->
   <node pkg="robot_navigation" type="mission_controller_node"
         name="mission_controller_node" output="screen" required="true">
     <rosparam file="$(arg mission_config)" command="load"/>

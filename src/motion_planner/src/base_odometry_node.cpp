@@ -153,7 +153,8 @@ void BaseOdometryNode::computeBodyVelocityFromWheelRpm(const std::array<double, 
 
   vx = 0.5 * (wheel_linear_vel[0] - wheel_linear_vel[2]);
   vy = 0.5 * (wheel_linear_vel[1] - wheel_linear_vel[3]);
-  omega = (wheel_linear_vel[0] + wheel_linear_vel[1] + wheel_linear_vel[2] + wheel_linear_vel[3]) /
+  // 取反以匹配逆运动学 omega 符号约定
+  omega = -(wheel_linear_vel[0] + wheel_linear_vel[1] + wheel_linear_vel[2] + wheel_linear_vel[3]) /
           (4.0 * std::max(1e-6, wheel_base_));
 }
 

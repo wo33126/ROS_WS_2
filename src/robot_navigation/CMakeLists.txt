@@ -17,6 +17,12 @@ find_package(catkin REQUIRED COMPONENTS
   arm_and_gripper
 )
 
+# ── Opus 音频编解码库 (audio_chat_node) ───────────────────
+find_package(PkgConfig)
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(OPUS opus)
+endif()
+
 # ── 消息定义 ───────────────────────────────────────────────
 add_message_files(
   FILES
@@ -195,8 +201,13 @@ add_dependencies(audio_chat_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
+target_include_directories(audio_chat_node PRIVATE
+  ${OPUS_INCLUDE_DIRS}
+)
+target_compile_definitions(audio_chat_node PRIVATE HAS_OPUS)
 target_link_libraries(audio_chat_node
   ${catkin_LIBRARIES}
+  ${OPUS_LIBRARIES}
 )
 
 # ── 物理启动按钮节点 (GPIO) ────────────────────────────────

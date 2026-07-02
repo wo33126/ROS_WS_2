@@ -1,0 +1,150 @@
+<?xml version="1.0"?>
+<!--
+  ==============================================================================
+   上位机（医生端）音视频通话启动文件
+   ==============================================================================
+
+   适用机器: 上位机 192.168.15.128 (Master)
+   功能:
+     - 启动本地 USB 摄像头（笔记本自带摄像头）
+     - 接收并显示下位机摄像头画面
+     - 双向 Opus/UDP 音频通话
+     - 受 /Ready 话题控制（1=启动, 0=停止）
+
+   使用方式:
+     # 先确保 roscore 已在上位机运行
+     roslaunch robot_navigation audio_video_master.launch
+
+     # 另一终端启动通话:
+     rostopic pub /Ready std_msgs/Int32 "data: 1" -1
+
+     # 停止通话:
+     rostopic pub /Ready std_msgs/Int32 "data: 0" -1
+
+   可选参数:
+     start_upper_cam:=false       — 禁用本地摄像头采集
+     upper_cam_device:=/dev/video1  — 指定摄像头设备
+     enable_browser:=true          — 启用浏览器 HTTP 流 (端口 8080)
+  ==============================================================================
+-->
+<launch>
+  <!-- ======================== 网络参数 ======================== -->
+  <arg name="master_uri"    default="http://192.168.15.128:11311"/>
+  <arg name="local_ip"      default="192.168.15.128"/>
+  <arg name="remote_ip"     default="192.168.15.129"/>
+
+  <env name="ROS_MASTER_URI" value="$(arg master_uri)"/>
+  <env name="ROS_IP"         value="$(arg local_ip)"/>
+
+  <!-- ======================== 摄像头参数 ======================== -->
+  <arg name="start_upper_cam"   default="true"/>
+  <arg name="upper_cam_device"  default="/dev/video0"/>
+  <arg name="cam_width"         default="1280"/>
+  <arg name="cam_height"        default="720"/>
+  <arg name="cam_framerate"     default="25"/>
+  <arg name="cam_pixel_format"  default="yuyv"/>   <!-- 如摄像头支持 MJPEG 硬件编码，改为 mjpeg -->
+
+  <!-- ======================== 视频推流参数 ======================== -->
+  <arg name="jpeg_quality"      default="85"/>
+  <arg name="stream_width"      default="1280"/>
+  <arg name="stream_height"     default="720"/>
+  <arg name="stream_framerate"  default="25.0"/>
+  <arg name="http_port"         default="8080"/>
+  <arg name="enable_http"       default="true"/>
+  <arg name="enable_browser"    default="false"/>  <!-- 额外浏览器入口 -->
+
+  <!-- ======================== 音频参数 ======================== -->
+  <arg name="sample_rate"       default="48000"/>
+  <arg name="frame_duration_ms" default="20"/>
+  <arg name="opus_bitrate"      default="32000"/>
+
+  <!-- ======================== Ready 控制 ======================== -->
+  <arg name="ready_topic"       default="/Ready"/>
+
+  <!-- ============================================================ -->
+  <!--  1. 上位机 USB 摄像头（笔记本自带）                          -->
+  <!-- ============================================================ -->
+  <group if="$(arg start_upper_cam)">
+    <node pkg="usb_cam" type="usb_cam_node" name="upper_usb_cam" ns="upper_cam"
+          output="screen" required="false">
+      <param name="video_device"  value="$(arg upper_cam_device)"/>
+      <param name="image_width"   value="$(arg cam_width)"/>
+      <param name="image_height"  value="$(arg cam_height)"/>
+      <param name="framerate"     value="$(arg cam_framerate)"/>
+      <param name="pixel_format"  value="$(arg cam_pixel_format)"/>
+      <param name="io_method"     value="mmap"/>
+    </node>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  2. 视频推流节点 — 接收下位机画面，压缩后提供 HTTP + 本地显示  -->
+  <!-- ============================================================ -->
+  <node pkg="robot_navigation" type="video_stream_node"
+        name="video_stream_master" output="screen">
+    <!-- 输入: 下位机摄像头的原始图像话题 -->
+    <param name="camera_topic"   value="/lower_cam/lower_usb_cam/image_raw"/>
+
+    <!-- JPEG 质量 (70=低质量小文件, 95=高质量大文件) -->
+    <param name="jpeg_quality"   value="$(arg jpeg_quality)"/>
+    <param name="stream_width"   value="$(arg stream_width)"/>
+    <param name="stream_height"  value="$(arg stream_height)"/>
+    <param name="framerate"      value="$(arg stream_framerate)"/>
+
+    <!-- HTTP MJPEG 服务器 -->
+    <param name="enable_http"    value="$(arg enable_http)"/>
+    <param name="http_port"      value="$(arg http_port)"/>
+
+    <!-- 本地显示: 将收到的画面发布为本地 raw topic，供 image_view 使用 -->
+    <param name="enable_local_display"    value="true"/>
+    <param name="local_display_topic"     value="/camera/lower_display"/>
+
+    <!-- Ready 控制 -->
+    <param name="ready_topic"     value="$(arg ready_topic)"/>
+    <param name="camera_timeout_sec" value="3.0"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  3. image_view — 显示下位机画面（读取本地显示话题，不走网络） -->
+  <!-- ============================================================ -->
+  <node pkg="image_view" type="image_view" name="view_lower_cam"
+        output="screen" required="false">
+    <remap from="image" to="/camera/lower_display"/>
+  </node>
+
+  <!-- ============================================================ -->
+  <!--  4. 可选: 浏览器入口（额外 HTTP 端口，方便调试）              -->
+  <!-- ============================================================ -->
+  <group if="$(arg enable_browser)">
+    <node pkg="robot_navigation" type="video_stream_node"
+          name="video_stream_master_http2" output="screen">
+      <param name="camera_topic"  value="/lower_cam/lower_usb_cam/image_raw"/>
+      <param name="jpeg_quality"  value="50"/>
+      <param name="stream_width"  value="640"/>
+      <param name="stream_height" value="480"/>
+      <param name="framerate"     value="10.0"/>
+      <param name="http_port"     value="8081"/>
+      <param name="enable_ros_topic"      value="false"/>
+      <param name="enable_local_display"  value="false"/>
+      <param name="ready_topic"   value="$(arg ready_topic)"/>
+    </node>
+  </group>
+
+  <!-- ============================================================ -->
+  <!--  5. 双向音频聊天节点                                          -->
+  <!-- ============================================================ -->
+  <node pkg="robot_navigation" type="audio_chat_node"
+        name="audio_chat_master" output="screen">
+    <param name="role"             value="master"/>
+    <param name="local_ip"         value="$(arg local_ip)"/>
+    <param name="remote_ip"        value="$(arg remote_ip)"/>
+    <param name="rx_port"          value="5004"/>
+    <param name="tx_port"          value="5005"/>
+    <param name="sample_rate"      value="$(arg sample_rate)"/>
+    <param name="frame_duration_ms" value="$(arg frame_duration_ms)"/>
+    <param name="opus_bitrate"     value="$(arg opus_bitrate)"/>
+    <param name="mic_device"       value="default"/>
+    <param name="speaker_device"   value="default"/>
+    <param name="ready_topic"      value="$(arg ready_topic)"/>
+  </node>
+
+</launch>

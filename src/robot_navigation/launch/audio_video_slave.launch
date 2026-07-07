@@ -33,12 +33,13 @@
   <env name="ROS_IP"         value="$(arg local_ip)"/>
 
   <!-- ======================== 摄像头参数 ======================== -->
-  <arg name="start_lower_cam"   default="true"/>
-  <arg name="lower_cam_device"  default="/dev/video0"/>
-  <arg name="cam_width"         default="1280"/>
-  <arg name="cam_height"        default="720"/>
-  <arg name="cam_framerate"     default="25"/>
-  <arg name="cam_pixel_format"  default="yuyv"/>
+  <arg name="start_lower_cam"    default="true"/>
+  <arg name="use_test_camera"    default="true"/>   <!-- 无真摄像头时自动用测试图案 -->
+  <arg name="lower_cam_device"   default="/dev/video0"/>
+  <arg name="cam_width"          default="1280"/>
+  <arg name="cam_height"         default="720"/>
+  <arg name="cam_framerate"      default="25"/>
+  <arg name="cam_pixel_format"   default="yuyv"/>
 
   <!-- ======================== 视频推流参数 ======================== -->
   <arg name="jpeg_quality"      default="85"/>
@@ -58,17 +59,26 @@
   <arg name="ready_topic"       default="/Ready"/>
 
   <!-- ============================================================ -->
-  <!--  1. 下位机 USB 摄像头（机器人摄像头）                         -->
+  <!--  1. 下位机摄像头（真摄像头 或 测试图案）                      -->
   <!-- ============================================================ -->
+  <!-- 真摄像头 -->
   <group if="$(arg start_lower_cam)">
     <node pkg="usb_cam" type="usb_cam_node" name="lower_usb_cam" ns="lower_cam"
-          output="screen" required="false">
+          output="screen" required="false" unless="$(arg use_test_camera)">
       <param name="video_device"  value="$(arg lower_cam_device)"/>
       <param name="image_width"   value="$(arg cam_width)"/>
       <param name="image_height"  value="$(arg cam_height)"/>
       <param name="framerate"     value="$(arg cam_framerate)"/>
       <param name="pixel_format"  value="$(arg cam_pixel_format)"/>
       <param name="io_method"     value="mmap"/>
+    </node>
+    <!-- 测试图案（无真摄像头时） -->
+    <node pkg="robot_navigation" type="test_camera.py"
+          name="lower_usb_cam" ns="lower_cam" output="screen"
+          if="$(arg use_test_camera)">
+      <param name="image_width"  value="$(arg cam_width)"/>
+      <param name="image_height" value="$(arg cam_height)"/>
+      <param name="framerate"    value="$(arg cam_framerate)"/>
     </node>
   </group>
 

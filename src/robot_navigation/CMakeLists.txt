@@ -261,3 +261,9 @@ install(DIRECTORY launch/
 install(DIRECTORY config/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
 )
+
+# ── Python 脚本 ─────────────────────────────────────────────
+catkin_install_python(PROGRAMS
+  scripts/test_camera.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

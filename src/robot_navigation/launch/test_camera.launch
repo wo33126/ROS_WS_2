@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!--
+  test_camera.launch — 测试摄像头模拟器
+
+  在没有真实 USB 摄像头的机器上发布彩色测试图案，
+  模拟 usb_cam_node 的输出话题。
+
+  使用方式:
+    roslaunch robot_navigation test_camera.launch ns:=lower_cam node_name:=lower_usb_cam
+-->
+<launch>
+  <arg name="ns"         default="lower_cam"/>
+  <arg name="node_name"  default="lower_usb_cam"/>
+  <arg name="width"      default="1280"/>
+  <arg name="height"     default="720"/>
+  <arg name="framerate"  default="25"/>
+
+  <node pkg="robot_navigation" type="test_camera.py"
+        name="$(arg node_name)" ns="$(arg ns)" output="screen">
+    <param name="image_width"  value="$(arg width)"/>
+    <param name="image_height" value="$(arg height)"/>
+    <param name="framerate"    value="$(arg framerate)"/>
+  </node>
+</launch>

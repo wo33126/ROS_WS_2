@@ -37,12 +37,13 @@
   <env name="ROS_IP"         value="$(arg local_ip)"/>
 
   <!-- ======================== 摄像头参数 ======================== -->
-  <arg name="start_upper_cam"   default="true"/>
-  <arg name="upper_cam_device"  default="/dev/video0"/>
-  <arg name="cam_width"         default="1280"/>
-  <arg name="cam_height"        default="720"/>
-  <arg name="cam_framerate"     default="25"/>
-  <arg name="cam_pixel_format"  default="yuyv"/>   <!-- 如摄像头支持 MJPEG 硬件编码，改为 mjpeg -->
+  <arg name="start_upper_cam"    default="true"/>
+  <arg name="use_test_camera"    default="false"/>   <!-- 主机默认用真摄像头 -->
+  <arg name="upper_cam_device"   default="/dev/video0"/>
+  <arg name="cam_width"          default="1280"/>
+  <arg name="cam_height"         default="720"/>
+  <arg name="cam_framerate"      default="25"/>
+  <arg name="cam_pixel_format"   default="yuyv"/>   <!-- 如摄像头支持 MJPEG 硬件编码，改为 mjpeg -->
 
   <!-- ======================== 视频推流参数 ======================== -->
   <arg name="jpeg_quality"      default="85"/>
@@ -62,17 +63,26 @@
   <arg name="ready_topic"       default="/Ready"/>
 
   <!-- ============================================================ -->
-  <!--  1. 上位机 USB 摄像头（笔记本自带）                          -->
+  <!--  1. 上位机摄像头（真摄像头 或 测试图案）                      -->
   <!-- ============================================================ -->
   <group if="$(arg start_upper_cam)">
+    <!-- 真摄像头 -->
     <node pkg="usb_cam" type="usb_cam_node" name="upper_usb_cam" ns="upper_cam"
-          output="screen" required="false">
+          output="screen" required="false" unless="$(arg use_test_camera)">
       <param name="video_device"  value="$(arg upper_cam_device)"/>
       <param name="image_width"   value="$(arg cam_width)"/>
       <param name="image_height"  value="$(arg cam_height)"/>
       <param name="framerate"     value="$(arg cam_framerate)"/>
       <param name="pixel_format"  value="$(arg cam_pixel_format)"/>
       <param name="io_method"     value="mmap"/>
+    </node>
+    <!-- 测试图案（无真摄像头时） -->
+    <node pkg="robot_navigation" type="test_camera.py"
+          name="upper_usb_cam" ns="upper_cam" output="screen"
+          if="$(arg use_test_camera)">
+      <param name="image_width"  value="$(arg cam_width)"/>
+      <param name="image_height" value="$(arg cam_height)"/>
+      <param name="framerate"    value="$(arg cam_framerate)"/>
     </node>
   </group>
 

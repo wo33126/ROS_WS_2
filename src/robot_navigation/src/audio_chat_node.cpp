@@ -373,8 +373,7 @@ class AudioChatNode {
         << " --buffer-size=" << buffer_frames
         << " --period-size=" << period_frames
         << " -t raw"
-        << " --nonblock"
-        << " 2>/dev/null";
+        << " 2>&1";   // 保留 stderr 以便诊断
 
     ROS_INFO("[audio_chat] 打开麦克风: %s", cmd.str().c_str());
 
@@ -382,6 +381,8 @@ class AudioChatNode {
     if (!pipe) {
       ROS_ERROR("[audio_chat] 无法打开麦克风设备: %s", mic_device_.c_str());
     }
+    // 禁用 stdio 缓冲，降低延迟
+    if (pipe) setvbuf(pipe, NULL, _IONBF, 0);
     return pipe;
   }
 
@@ -400,8 +401,7 @@ class AudioChatNode {
         << " -c " << channels_
         << " --buffer-size=" << buffer_frames
         << " -t raw"
-        << " --nonblock"
-        << " 2>/dev/null";
+        << " 2>&1";
 
     ROS_INFO("[audio_chat] 打开扬声器: %s", cmd.str().c_str());
 
@@ -409,8 +409,8 @@ class AudioChatNode {
     if (!pipe) {
       ROS_ERROR("[audio_chat] 无法打开扬声器设备: %s", speaker_device_.c_str());
     }
-    // 给 alsa 一点时间初始化
-    usleep(100000);
+    // 禁用 stdio 缓冲，降低延迟
+    if (pipe) setvbuf(pipe, NULL, _IONBF, 0);
     return pipe;
   }
 
@@ -444,10 +444,22 @@ class AudioChatNode {
     uint8_t      buf[buf_size];
     const int    frame_samples      = sample_rate_ * frame_duration_ms_ / 1000;
 
-    // 每 2ms 轮询一次（低频延迟关键优化点）
+    // 每 2ms 轮询一次（低延迟关键优化点）
     const int poll_interval_us = 2000;
 
+    // 心跳计数器
+    int      pkt_count    = 0;
+    int      decode_errs  = 0;
+    ros::Time last_report = ros::Time::now();
+
     while (ros::ok() && threads_running_ && rx_socket_ >= 0) {
+      // 检查 speaker 管道是否断开
+      if (feof(speaker_pipe_) || ferror(speaker_pipe_)) {
+        ROS_ERROR("[audio_chat] 扬声器管道断开! 接收线程退出");
+        closePipe(speaker_pipe_);
+        return;
+      }
+
       // 检查 socket 是否有数据
       struct sockaddr_in sender;
       socklen_t sender_len = sizeof(sender);
@@ -455,7 +467,6 @@ class AudioChatNode {
                            (struct sockaddr*)&sender, &sender_len);
 
       if (n <= 0) {
-        // 无数据，短暂休眠后继续
         usleep(poll_interval_us);
         continue;
       }
@@ -472,19 +483,30 @@ class AudioChatNode {
           size_t bytes = decoded * channels_ * sizeof(int16_t);
           fwrite(pcm_out.data(), 1, bytes, speaker_pipe_);
           fflush(speaker_pipe_);
+          pkt_count++;
         } else if (decoded < 0) {
-          ROS_WARN_THROTTLE(5.0, "[audio_chat] Opus 解码错误: %d", decoded);
+          decode_errs++;
+          if (decode_errs <= 3) {
+            ROS_WARN("[audio_chat] Opus 解码错误: %d (包大小=%ld)", decoded, n);
+          }
         }
       }
 #else
       // PCM 直通模式
-      // 对齐写入: 截断到整数个采样帧
       size_t pcm_size = (n / (channels_ * sizeof(int16_t))) * channels_ * sizeof(int16_t);
       if (pcm_size > 0) {
         fwrite(buf, 1, pcm_size, speaker_pipe_);
         fflush(speaker_pipe_);
+        pkt_count++;
       }
 #endif
+
+      // 心跳日志（每 5 秒）
+      if ((ros::Time::now() - last_report).toSec() >= 5.0) {
+        ROS_INFO("[audio_chat] RX 心跳: %d 包已接收, %d 解码错误",
+                 pkt_count, decode_errs);
+        last_report = ros::Time::now();
+      }
     }
 
     closePipe(speaker_pipe_);
@@ -512,6 +534,11 @@ class AudioChatNode {
     // 帧率: 1 / frame_duration_ms = 50fps (for 20ms)
     const int frame_interval_us = frame_duration_ms_ * 1000;
 
+    // 心跳计数器
+    int      frame_count  = 0;
+    int      error_count  = 0;
+    ros::Time last_report = ros::Time::now();
+
     while (ros::ok() && threads_running_ && tx_socket_ >= 0) {
       // 读取一帧 PCM 数据
       size_t total_read = 0;
@@ -519,9 +546,14 @@ class AudioChatNode {
       uint8_t* ptr      = pcm_buf.data();
 
       while (remaining > 0 && threads_running_) {
+        // 检查管道是否断开
+        if (feof(mic_pipe_) || ferror(mic_pipe_)) {
+          ROS_ERROR("[audio_chat] 麦克风管道断开! 发送线程退出");
+          closePipe(mic_pipe_);
+          return;
+        }
         size_t n = fread(ptr, 1, remaining, mic_pipe_);
         if (n == 0) {
-          // 管道可能暂时没数据，短暂等待
           usleep(1000);
           continue;
         }
@@ -530,10 +562,8 @@ class AudioChatNode {
         remaining  -= n;
       }
 
-      if (total_read < pcm_frame_bytes) {
-        // 没有足够数据，跳过此帧
-        continue;
-      }
+      if (!threads_running_) break;
+      if (total_read < pcm_frame_bytes) continue;
 
       // 编码并发送
 #ifdef HAS_OPUS
@@ -544,24 +574,38 @@ class AudioChatNode {
         int encoded = opus_encode(encoder_, pcm_samples, frame_samples,
                                   opus_pkt, sizeof(opus_pkt));
         if (encoded > 0) {
-          sendto(tx_socket_, opus_pkt, encoded, MSG_DONTWAIT,
-                 (struct sockaddr*)&tx_addr_, sizeof(tx_addr_));
+          ssize_t sent = sendto(tx_socket_, opus_pkt, encoded, MSG_DONTWAIT,
+                                (struct sockaddr*)&tx_addr_, sizeof(tx_addr_));
+          if (sent > 0) {
+            frame_count++;
+          } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            error_count++;
+          }
         } else if (encoded < 0) {
-          ROS_WARN_THROTTLE(5.0, "[audio_chat] Opus 编码错误: %d", encoded);
+          if (error_count++ % 100 == 0) {
+            ROS_WARN_THROTTLE(5.0, "[audio_chat] Opus 编码错误: %d", encoded);
+          }
         }
       }
 #else
-      // PCM 直通
-      sendto(tx_socket_, pcm_buf.data(), pcm_frame_bytes, MSG_DONTWAIT,
-             (struct sockaddr*)&tx_addr_, sizeof(tx_addr_));
+      ssize_t sent = sendto(tx_socket_, pcm_buf.data(), pcm_frame_bytes, MSG_DONTWAIT,
+                            (struct sockaddr*)&tx_addr_, sizeof(tx_addr_));
+      if (sent > 0) frame_count++;
 #endif
 
-      // 等待下一帧（补偿处理时间）
+      // 心跳日志（每 5 秒）
+      if ((ros::Time::now() - last_report).toSec() >= 5.0) {
+        ROS_INFO("[audio_chat] TX 心跳: %d 帧已发送, %d 错误, 目标 %s:%d",
+                 frame_count, error_count, remote_ip_.c_str(), tx_port_);
+        last_report = ros::Time::now();
+      }
+
+      // 等待下一帧
       usleep(std::max(1000, frame_interval_us - 2000));
     }
 
     closePipe(mic_pipe_);
-    ROS_INFO("[audio_chat] 发送线程退出");
+    ROS_INFO("[audio_chat] 发送线程退出 (共发送 %d 帧)", frame_count);
   }
 
   // ═══════════════════════════════════════════════════════════════

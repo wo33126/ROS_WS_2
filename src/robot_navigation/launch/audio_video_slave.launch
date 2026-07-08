@@ -34,7 +34,7 @@
 
   <!-- ======================== 摄像头参数 ======================== -->
   <arg name="start_lower_cam"    default="true"/>
-  <arg name="use_test_camera"    default="true"/>   <!-- 无真摄像头时自动用测试图案 -->
+  <arg name="use_test_camera"    default="false"/>   <!-- 真摄像头 -->
   <arg name="lower_cam_device"   default="/dev/video0"/>
   <arg name="cam_width"          default="1280"/>
   <arg name="cam_height"         default="720"/>

@@ -226,7 +226,7 @@
       <param name="sample_rate" value="48000"/>
       <param name="remote_ip" value="192.168.15.129"/>
       <param name="rx_port" value="5004"/>
-      <param name="tx_port" value="5005"/>
+      <param name="tx_port" value="5004"/>
     </node>
   </group>
 

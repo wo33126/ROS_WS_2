@@ -148,7 +148,7 @@
     <param name="local_ip"         value="$(arg local_ip)"/>
     <param name="remote_ip"        value="$(arg remote_ip)"/>
     <param name="rx_port"          value="5004"/>
-    <param name="tx_port"          value="5005"/>
+    <param name="tx_port"          value="5004"/>
     <param name="sample_rate"      value="$(arg sample_rate)"/>
     <param name="frame_duration_ms" value="$(arg frame_duration_ms)"/>
     <param name="opus_bitrate"     value="$(arg opus_bitrate)"/>

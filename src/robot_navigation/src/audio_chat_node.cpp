@@ -11,7 +11,7 @@
  * 协议：
  *   - 音频格式: 48kHz, 16-bit, mono PCM → Opus 编码 (32kbps)
  *   - 传输: UDP 单播（机器人 ↔ 医生端 PC）
- *   - 端口: 双方均 RX=5004, TX=5005
+ *   - 端口: 双方均 RX=5004, TX=5004
  *
  * 依赖: libopus (libopus-dev)
  */
@@ -67,7 +67,7 @@ class AudioChatNode {
       , local_ip_("192.168.15.128")
       , remote_ip_("192.168.15.129")
       , rx_port_(5004)
-      , tx_port_(5005)
+      , tx_port_(5004)
       , mic_device_("default")
       , speaker_device_("default")
       , tx_socket_(-1)
@@ -86,7 +86,7 @@ class AudioChatNode {
     pnh_.param<std::string>("remote_ip", remote_ip_, remote_ip_);
     pnh_.param<std::string>("local_ip", local_ip_, local_ip_);
     pnh_.param<int>("rx_port", rx_port_, 5004);
-    pnh_.param<int>("tx_port", tx_port_, 5005);
+    pnh_.param<int>("tx_port", tx_port_, 5004);
 
     // ── 音频参数 ──
     pnh_.param<int>("sample_rate", sample_rate_, 48000);

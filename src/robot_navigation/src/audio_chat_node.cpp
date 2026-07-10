@@ -356,24 +356,21 @@ class AudioChatNode {
   /**
    * @brief 打开麦克风采集管道
    *
-   * 使用 --buffer-size 和 --period-size 降低 ALSA 内部缓冲延迟
+   * stdbuf -i0 -o0 强制 pacat 的 stdout 无缓冲，消除内核管道积压延迟
+   * latency-msec=20 请求最小采集片段（PA 硬件下限约 100ms，但请求越小越好）
    */
   FILE* openMic() {
-    // 计算低延迟 buffer: 2 帧 = 40ms
-    const int frames_per_packet = sample_rate_ * frame_duration_ms_ / 1000;
-    const int buffer_frames     = frames_per_packet * 2;   // 双缓冲
-    const int period_frames     = frames_per_packet;       // 中断周期 = 帧长
-
     std::ostringstream cmd;
-    cmd << "arecord"
-        << " -D " << mic_device_
-        << " -f S16_LE"
-        << " -r " << sample_rate_
-        << " -c " << channels_
-        << " --buffer-size=" << buffer_frames
-        << " --period-size=" << period_frames
-        << " -t raw"
-        << " 2>&1";   // 保留 stderr 以便诊断
+    // stdbuf -i0 -o0: 禁用 pacat 进程自身的 stdio 缓冲，PCM 数据立即写入管道
+    cmd << "stdbuf -i0 -o0 pacat --record"
+        << " --format=s16le"
+        << " --rate=" << sample_rate_
+        << " --channels=" << channels_
+        << " --latency-msec=50";
+    if (mic_device_ != "default") {
+      cmd << " --device=" << mic_device_;
+    }
+    cmd << " 2>&1";
 
     ROS_INFO("[audio_chat] 打开麦克风: %s", cmd.str().c_str());
 
@@ -381,27 +378,27 @@ class AudioChatNode {
     if (!pipe) {
       ROS_ERROR("[audio_chat] 无法打开麦克风设备: %s", mic_device_.c_str());
     }
-    // 禁用 stdio 缓冲，降低延迟
     if (pipe) setvbuf(pipe, NULL, _IONBF, 0);
     return pipe;
   }
 
   /**
    * @brief 打开扬声器播放管道
+   *
+   * latency-msec=100 作为抖动缓冲（VM 内网抖动 < 50ms，100ms 够用）
+   * PA 硬件固定延迟 ~100ms，播放侧总延迟约 200ms
    */
   FILE* openSpeaker() {
-    const int frames_per_packet = sample_rate_ * frame_duration_ms_ / 1000;
-    const int buffer_frames     = frames_per_packet * 2;
-
     std::ostringstream cmd;
-    cmd << "aplay"
-        << " -D " << speaker_device_
-        << " -f S16_LE"
-        << " -r " << sample_rate_
-        << " -c " << channels_
-        << " --buffer-size=" << buffer_frames
-        << " -t raw"
-        << " 2>&1";
+    cmd << "pacat --playback"
+        << " --format=s16le"
+        << " --rate=" << sample_rate_
+        << " --channels=" << channels_
+        << " --latency-msec=100";
+    if (speaker_device_ != "default") {
+      cmd << " --device=" << speaker_device_;
+    }
+    cmd << " 2>&1";
 
     ROS_INFO("[audio_chat] 打开扬声器: %s", cmd.str().c_str());
 
@@ -531,8 +528,8 @@ class AudioChatNode {
     const size_t pcm_frame_bytes  = frame_samples * channels_ * sizeof(int16_t);
     std::vector<uint8_t> pcm_buf(pcm_frame_bytes);
 
-    // 帧率: 1 / frame_duration_ms = 50fps (for 20ms)
-    const int frame_interval_us = frame_duration_ms_ * 1000;
+    // fread 本身会阻塞到 ALSA 填满一帧（~20ms），不需要额外 sleep 来限速
+    // 保留一个极短让步，避免 CPU 空转（仅在 fread 意外快返回时起作用）
 
     // 心跳计数器
     int      frame_count  = 0;
@@ -600,8 +597,7 @@ class AudioChatNode {
         last_report = ros::Time::now();
       }
 
-      // 等待下一帧
-      usleep(std::max(1000, frame_interval_us - 2000));
+      // 不 sleep：fread 已经天然限速到一帧周期（~20ms）
     }
 
     closePipe(mic_pipe_);
